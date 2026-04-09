@@ -14,3 +14,5 @@ class Config:
     USERS_FILE = os.environ.get("USERS_FILE", "users.json")
     # Path to the JSON file used to persist peer display names
     PEER_NAMES_FILE = os.environ.get("PEER_NAMES_FILE", "peer_names.json")
+    # Directory where saved firewall rule snapshots are stored
+    FIREWALL_SAVE_DIR = os.environ.get("FIREWALL_SAVE_DIR", "firewall_saves")
