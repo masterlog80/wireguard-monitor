@@ -319,7 +319,7 @@ def export_wg_configs() -> Tuple[bool, Dict[str, str], str]:
     configs: Dict[str, str] = {}
     try:
         if not os.path.isdir(_WG_CONFIG_DIR):
-            return False, {}, f"Directory not found: {_WG_CONFIG_DIR}"
+            return False, {}, "WireGuard config directory not found"
         for fname in sorted(os.listdir(_WG_CONFIG_DIR)):
             if not fname.endswith(".conf"):
                 continue
@@ -332,7 +332,7 @@ def export_wg_configs() -> Tuple[bool, Dict[str, str], str]:
     except OSError as exc:
         return False, {}, str(exc)
     if not configs:
-        return False, {}, "No WireGuard config files found in " + _WG_CONFIG_DIR
+        return False, {}, "No WireGuard config files found"
     return True, configs, ""
 
 
@@ -358,11 +358,14 @@ def import_wg_config(filename: str, content: str) -> Dict[str, Any]:
                                       "Only alphanumeric characters, hyphens, and underscores are allowed."}
     # Construct path from the validated stem only — never from the raw user string.
     fpath = os.path.join(_WG_CONFIG_DIR, stem + ".conf")
+    # Belt-and-suspenders: verify the resolved path stays inside _WG_CONFIG_DIR.
+    if os.path.dirname(os.path.realpath(fpath)) != os.path.realpath(_WG_CONFIG_DIR):
+        return {"ok": False, "error": "Invalid config path"}
     try:
         os.makedirs(_WG_CONFIG_DIR, exist_ok=True)
         fd = os.open(fpath, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
             f.write(content)
     except OSError:
-        return {"ok": False, "error": "Could not save config file (check server permissions for /etc/wireguard/)"}
+        return {"ok": False, "error": "Could not save config file (check server permissions)"}
     return {"ok": True, "path": fpath}

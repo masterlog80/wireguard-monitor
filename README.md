@@ -212,7 +212,7 @@ The dashboard now includes a **WireGuard Config Export / Import** card directly 
 - **Export Config** – downloads all `*.conf` files from `/etc/wireguard/` as a single file (one interface) or a ZIP archive (multiple interfaces).
 - **Import Config** – uploads a `.conf` file from your browser and writes it to `/etc/wireguard/` with mode `0600`. Restart the interface afterwards to apply the new configuration.
 
-![WireGuard Config Export/Import](https://github.com/user-attachments/assets/wireguard-export-import-placeholder)
+<!-- TODO: replace with an actual screenshot after uploading to GitHub assets -->
 
 ### Firewall Rules
 ![Firewall Rules](https://github.com/user-attachments/assets/4897b603-e59b-4729-9d83-c1be6b868dc7)
@@ -223,7 +223,7 @@ The **Save &amp; Restore Rules** panel on the Firewall page now exposes two addi
 - **Export** – downloads the live ruleset (`iptables-save` / `nft list ruleset`) directly to your browser as `iptables.rules` or `nftables.rules`.
 - **Import** – uploads a rules file from your browser and immediately applies it (`iptables-restore` / `nft -f`). nftables import performs an automatic rollback to the previous ruleset if the new rules fail to load.
 
-![Firewall Export/Import](https://github.com/user-attachments/assets/firewall-export-import-placeholder)
+<!-- TODO: replace with an actual screenshot after uploading to GitHub assets -->
 
 ### User Management
 ![User Management](https://github.com/user-attachments/assets/78d32ff9-4b4f-45af-ba11-27cb31ad744c)
