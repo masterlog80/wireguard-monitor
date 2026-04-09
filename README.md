@@ -201,33 +201,33 @@ python -m pytest tests.py -v
 ## Screenshots
 
 ### Login Page
-![Login Page](https://github.com/user-attachments/assets/116594ca-444b-4550-a636-6807083fd029)
+![Login Page](https://github.com/user-attachments/assets/395fbf9c-d054-4601-97cf-e885b5493417)
 
 ### Dashboard
-![Dashboard](https://github.com/user-attachments/assets/e815662b-3037-4409-a96b-b703f9515efa)
+![Dashboard](https://github.com/user-attachments/assets/5d78af9c-6891-4e8b-b583-9fb7cd21f7c7)
 
 ### WireGuard Config Export / Import
-The dashboard now includes a **WireGuard Config Export / Import** card directly below the WireGuard Status section.
+The dashboard includes a **WireGuard Config Export / Import** card directly below the WireGuard Status section.
 
 - **Export Config** – downloads all `*.conf` files from `/etc/wireguard/` as a single file (one interface) or a ZIP archive (multiple interfaces).
 - **Import Config** – uploads a `.conf` file from your browser and writes it to `/etc/wireguard/` with mode `0600`. Restart the interface afterwards to apply the new configuration.
 
-<!-- TODO: replace with an actual screenshot after uploading to GitHub assets -->
+![WireGuard Config Export / Import](https://github.com/user-attachments/assets/5d78af9c-6891-4e8b-b583-9fb7cd21f7c7)
 
 ### Firewall Rules
-![Firewall Rules](https://github.com/user-attachments/assets/4897b603-e59b-4729-9d83-c1be6b868dc7)
+![Firewall Rules](https://github.com/user-attachments/assets/b7baa1c6-ae57-4a28-823c-0c4606a95a05)
 
 ### Firewall Export / Import
-The **Save &amp; Restore Rules** panel on the Firewall page now exposes two additional buttons per ruleset:
+The **Save &amp; Restore Rules** panel on the Firewall page exposes two additional buttons per ruleset:
 
 - **Export** – downloads the live ruleset (`iptables-save` / `nft list ruleset`) directly to your browser as `iptables.rules` or `nftables.rules`.
 - **Import** – uploads a rules file from your browser and immediately applies it (`iptables-restore` / `nft -f`). nftables import performs an automatic rollback to the previous ruleset if the new rules fail to load.
 
-<!-- TODO: replace with an actual screenshot after uploading to GitHub assets -->
+![Firewall Export / Import](https://github.com/user-attachments/assets/b7baa1c6-ae57-4a28-823c-0c4606a95a05)
 
 ### User Management
-![User Management](https://github.com/user-attachments/assets/78d32ff9-4b4f-45af-ba11-27cb31ad744c)
+![User Management](https://github.com/user-attachments/assets/16ebcefe-f74c-4bfa-8ad8-b1de67572ae8)
 
 ### Create User
-![Create User](https://github.com/user-attachments/assets/f5e58c7d-dddf-48d5-be78-f41e6ecc18bf)
+![Create User](https://github.com/user-attachments/assets/c6206fae-789f-45bd-8417-7f788198837c)
 
