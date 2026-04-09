@@ -167,6 +167,44 @@ Open **http://\<your-server\>:5000** in a browser to confirm the UI is available
 | Restart the service | `sudo systemctl restart wireguard-monitor` |
 | Disable auto-start | `sudo systemctl disable wireguard-monitor` |
 
+## Uninstall
+
+Follow these steps to completely remove the wireguard-monitor from your system.
+
+### 1 – Stop and disable the systemd service
+
+```bash
+sudo systemctl stop wireguard-monitor
+sudo systemctl disable wireguard-monitor
+```
+
+### 2 – Remove the systemd unit file
+
+```bash
+sudo rm /etc/systemd/system/wireguard-monitor.service
+sudo systemctl daemon-reload
+```
+
+### 3 – Remove the application files
+
+```bash
+sudo rm -rf /opt/wireguard-monitor
+```
+
+### 4 – Remove the data directory
+
+> **Warning:** This deletes all user accounts and peer names stored by the application.
+
+```bash
+sudo rm -rf /var/lib/wireguard-monitor
+```
+
+### 5 – Remove the environment file
+
+```bash
+sudo rm -f /etc/wireguard-monitor.env
+```
+
 ## Running Tests
 
 ```bash
