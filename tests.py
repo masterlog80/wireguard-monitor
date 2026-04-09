@@ -290,6 +290,265 @@ Chain OUTPUT (policy ACCEPT 42 packets, 1024 bytes)
         self.assertIn("iptables", rules)
         self.assertIn("nftables", rules)
 
+    def test_save_iptables_rules_success(self):
+        from app import firewall
+
+        mock_stat = MagicMock()
+        mock_stat.st_mtime = 1000000.0
+        with patch.object(firewall, "_run", return_value=(0, "*filter\nCOMMIT\n", "")), \
+             patch("builtins.open", unittest.mock.mock_open()), \
+             patch.object(firewall, "_ensure_save_dir", return_value="/tmp"), \
+             patch("app.firewall.os.stat", return_value=mock_stat):
+            result = firewall.save_iptables_rules()
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["saved_at"], 1000000.0)
+
+    def test_save_iptables_rules_failure(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(1, "", "permission denied")):
+            result = firewall.save_iptables_rules()
+
+        self.assertFalse(result["ok"])
+        self.assertIn("permission denied", result["error"])
+
+    def test_restore_iptables_rules_no_file(self):
+        from app import firewall
+
+        with patch.object(firewall, "os") as mock_os:
+            mock_os.path.exists.return_value = False
+            mock_os.makedirs = os.makedirs
+            mock_os.stat = os.stat
+            result = firewall.restore_iptables_rules()
+
+        self.assertFalse(result["ok"])
+        self.assertIn("No saved iptables rules found", result["error"])
+
+    def test_restore_iptables_rules_success(self):
+        import tempfile
+        from app import firewall
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".rules", delete=False) as f:
+            f.write("*filter\nCOMMIT\n")
+            tmp_path = f.name
+
+        try:
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stderr = ""
+            with patch.object(firewall, "_iptables_save_path", return_value=tmp_path), \
+                 patch("app.firewall.subprocess.run", return_value=mock_result):
+                result = firewall.restore_iptables_rules()
+            self.assertTrue(result["ok"])
+        finally:
+            os.unlink(tmp_path)
+
+    def test_save_nftables_rules_success(self):
+        from app import firewall
+
+        mock_stat = MagicMock()
+        mock_stat.st_mtime = 2000000.0
+        with patch.object(firewall, "_run", return_value=(0, "table ip filter {}\n", "")), \
+             patch("builtins.open", unittest.mock.mock_open()), \
+             patch.object(firewall, "_ensure_save_dir", return_value="/tmp"), \
+             patch("app.firewall.os.stat", return_value=mock_stat):
+            result = firewall.save_nftables_rules()
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["saved_at"], 2000000.0)
+
+    def test_save_nftables_rules_failure(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(1, "", "nft not available")):
+            result = firewall.save_nftables_rules()
+
+        self.assertFalse(result["ok"])
+
+    def test_restore_nftables_rules_no_file(self):
+        from app import firewall
+
+        with patch.object(firewall, "os") as mock_os:
+            mock_os.path.exists.return_value = False
+            mock_os.makedirs = os.makedirs
+            mock_os.stat = os.stat
+            result = firewall.restore_nftables_rules()
+
+        self.assertFalse(result["ok"])
+        self.assertIn("No saved nftables rules found", result["error"])
+
+    def test_restore_nftables_rules_success(self):
+        import tempfile
+        from app import firewall
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".rules", delete=False) as f:
+            f.write("table ip filter {}\n")
+            tmp_path = f.name
+
+        try:
+            with patch.object(firewall, "_nftables_save_path", return_value=tmp_path), \
+                 patch.object(firewall, "_run", return_value=(0, "", "")):
+                result = firewall.restore_nftables_rules()
+            self.assertTrue(result["ok"])
+        finally:
+            os.unlink(tmp_path)
+
+    def test_get_saved_rules_info_no_files(self):
+        from app import firewall
+
+        with patch.object(firewall, "os") as mock_os:
+            mock_os.path.exists.return_value = False
+            mock_os.makedirs = os.makedirs
+            info = firewall.get_saved_rules_info()
+
+        self.assertFalse(info["iptables"]["exists"])
+        self.assertFalse(info["nftables"]["exists"])
+
+    def test_get_saved_rules_info_with_files(self):
+        import tempfile
+        from app import firewall
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".rules", delete=False) as f:
+            f.write("*filter\nCOMMIT\n")
+            tmp_path = f.name
+
+        try:
+            with patch.object(firewall, "_iptables_save_path", return_value=tmp_path), \
+                 patch.object(firewall, "_nftables_save_path", return_value="/nonexistent/path"):
+                info = firewall.get_saved_rules_info()
+            self.assertTrue(info["iptables"]["exists"])
+            self.assertIn("saved_at", info["iptables"])
+            self.assertFalse(info["nftables"]["exists"])
+        finally:
+            os.unlink(tmp_path)
+
+
+class TestFirewallRoutes(unittest.TestCase):
+    """Tests for the firewall save/restore API routes."""
+
+    def setUp(self):
+        _reset_user_store()
+        from app import create_app
+        self.app = create_app()
+        self.app.testing = True
+        self.client = self.app.test_client()
+        self._login()
+
+    def tearDown(self):
+        _reset_user_store()
+
+    def _login(self):
+        self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+        )
+
+    def test_saved_info_requires_login(self):
+        self.client.get("/logout")
+        resp = self.client.get("/api/firewall/saved_info", follow_redirects=False)
+        self.assertIn(resp.status_code, (301, 302))
+
+    def test_saved_info_returns_keys(self):
+        from app import firewall
+        with patch.object(firewall, "get_saved_rules_info",
+                          return_value={"iptables": {"exists": False},
+                                        "nftables": {"exists": False}}):
+            resp = self.client.get("/api/firewall/saved_info")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertIn("iptables", data)
+        self.assertIn("nftables", data)
+
+    def test_save_iptables(self):
+        from app import firewall
+        with patch.object(firewall, "save_iptables_rules", return_value={"ok": True, "path": "/tmp/x"}):
+            resp = self.client.post("/api/firewall/save", json={"type": "iptables"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.get_json()["ok"])
+
+    def test_save_nftables(self):
+        from app import firewall
+        with patch.object(firewall, "save_nftables_rules", return_value={"ok": True, "path": "/tmp/x"}):
+            resp = self.client.post("/api/firewall/save", json={"type": "nftables"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.get_json()["ok"])
+
+    def test_save_both(self):
+        from app import firewall
+        with patch.object(firewall, "save_iptables_rules", return_value={"ok": True}), \
+             patch.object(firewall, "save_nftables_rules", return_value={"ok": True}):
+            resp = self.client.post("/api/firewall/save", json={"type": "both"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+        self.assertIn("iptables", data["results"])
+        self.assertIn("nftables", data["results"])
+
+    def test_save_default_type_is_both(self):
+        from app import firewall
+        with patch.object(firewall, "save_iptables_rules", return_value={"ok": True}) as mock_ipt, \
+             patch.object(firewall, "save_nftables_rules", return_value={"ok": True}) as mock_nft:
+            resp = self.client.post("/api/firewall/save", json={})
+        self.assertEqual(resp.status_code, 200)
+        mock_ipt.assert_called_once()
+        mock_nft.assert_called_once()
+
+    def test_save_invalid_type(self):
+        resp = self.client.post("/api/firewall/save", json={"type": "invalid"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.get_json()["ok"])
+
+    def test_save_failure_returns_500(self):
+        from app import firewall
+        with patch.object(firewall, "save_iptables_rules",
+                          return_value={"ok": False, "error": "permission denied"}):
+            resp = self.client.post("/api/firewall/save", json={"type": "iptables"})
+        self.assertEqual(resp.status_code, 500)
+        self.assertFalse(resp.get_json()["ok"])
+
+    def test_restore_iptables(self):
+        from app import firewall
+        with patch.object(firewall, "restore_iptables_rules", return_value={"ok": True}):
+            resp = self.client.post("/api/firewall/restore", json={"type": "iptables"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.get_json()["ok"])
+
+    def test_restore_nftables(self):
+        from app import firewall
+        with patch.object(firewall, "restore_nftables_rules", return_value={"ok": True}):
+            resp = self.client.post("/api/firewall/restore", json={"type": "nftables"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.get_json()["ok"])
+
+    def test_restore_both(self):
+        from app import firewall
+        with patch.object(firewall, "restore_iptables_rules", return_value={"ok": True}), \
+             patch.object(firewall, "restore_nftables_rules", return_value={"ok": True}):
+            resp = self.client.post("/api/firewall/restore", json={"type": "both"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.get_json()["ok"])
+
+    def test_restore_no_file(self):
+        from app import firewall
+        with patch.object(firewall, "restore_iptables_rules",
+                          return_value={"ok": False, "error": "No saved iptables rules found"}):
+            resp = self.client.post("/api/firewall/restore", json={"type": "iptables"})
+        self.assertEqual(resp.status_code, 500)
+        self.assertFalse(resp.get_json()["ok"])
+
+    def test_restore_requires_login(self):
+        self.client.get("/logout")
+        resp = self.client.post("/api/firewall/restore", json={"type": "both"},
+                                follow_redirects=False)
+        self.assertIn(resp.status_code, (301, 302))
+
+    def test_save_requires_login(self):
+        self.client.get("/logout")
+        resp = self.client.post("/api/firewall/save", json={"type": "both"},
+                                follow_redirects=False)
+        self.assertIn(resp.status_code, (301, 302))
+
 
 class TestUserManagement(unittest.TestCase):
     """Tests for the user management blueprint and UserStore."""

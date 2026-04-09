@@ -119,3 +119,63 @@ def api_delete_peer_name(public_key):
     """Remove the display name for a peer (reverts to showing the public key)."""
     get_peer_name_store().delete(public_key)
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Firewall save / restore API
+# ---------------------------------------------------------------------------
+
+
+@main_bp.route("/api/firewall/saved_info")
+@login_required
+def api_firewall_saved_info():
+    """Return metadata about any saved firewall rule snapshots."""
+    return jsonify(firewall.get_saved_rules_info())
+
+
+@main_bp.route("/api/firewall/save", methods=["POST"])
+@login_required
+def api_firewall_save():
+    """Save the current firewall rules.
+
+    Accepts an optional JSON body ``{"type": "iptables"|"nftables"|"both"}``.
+    Defaults to ``"both"`` when type is omitted.
+    """
+    data = request.get_json(silent=True) or {}
+    rule_type = str(data.get("type", "both")).lower()
+    if rule_type not in ("iptables", "nftables", "both"):
+        return jsonify({"ok": False, "error": "type must be 'iptables', 'nftables', or 'both'"}), 400
+
+    results: dict = {}
+    if rule_type in ("iptables", "both"):
+        results["iptables"] = firewall.save_iptables_rules()
+    if rule_type in ("nftables", "both"):
+        results["nftables"] = firewall.save_nftables_rules()
+
+    overall_ok = bool(results) and all(v.get("ok") for v in results.values())
+    status_code = 200 if overall_ok else 500
+    return jsonify({"ok": overall_ok, "results": results}), status_code
+
+
+@main_bp.route("/api/firewall/restore", methods=["POST"])
+@login_required
+def api_firewall_restore():
+    """Restore previously saved firewall rules.
+
+    Accepts an optional JSON body ``{"type": "iptables"|"nftables"|"both"}``.
+    Defaults to ``"both"`` when type is omitted.
+    """
+    data = request.get_json(silent=True) or {}
+    rule_type = str(data.get("type", "both")).lower()
+    if rule_type not in ("iptables", "nftables", "both"):
+        return jsonify({"ok": False, "error": "type must be 'iptables', 'nftables', or 'both'"}), 400
+
+    results: dict = {}
+    if rule_type in ("iptables", "both"):
+        results["iptables"] = firewall.restore_iptables_rules()
+    if rule_type in ("nftables", "both"):
+        results["nftables"] = firewall.restore_nftables_rules()
+
+    overall_ok = bool(results) and all(v.get("ok") for v in results.values())
+    status_code = 200 if overall_ok else 500
+    return jsonify({"ok": overall_ok, "results": results}), status_code
