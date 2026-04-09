@@ -67,6 +67,7 @@ Then open **http://\<your-server\>:5000** in a browser and log in.
     ├── users.py        # User management blueprint
     ├── wireguard.py    # WireGuard data collection, history & config export/import
     ├── firewall.py     # iptables / nftables reader, save/restore & export/import
+    ├── peer_names.py   # Peer name persistence (read/write peer_names.json)
     ├── templates/
     │   ├── base.html
     │   ├── login.html
@@ -74,6 +75,7 @@ Then open **http://\<your-server\>:5000** in a browser and log in.
     │   ├── firewall.html    # Firewall rules + save/restore + export/import
     │   └── users.html
     └── static/
+        ├── favicon.svg
         ├── css/style.css
         ├── js/dashboard.js
         └── vendor/        # Bootstrap 5, Bootstrap Icons, Chart.js (local)
