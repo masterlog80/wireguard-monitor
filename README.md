@@ -9,6 +9,10 @@ A Flask-based web application running on Linux (port 5000) that provides a real-
 - **Throughput graphs** – per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds
 - **Ping latency graphs** – per-peer round-trip time chart, refreshed every 5 seconds
 - **Firewall rules page** – displays both `iptables` and `nftables` rulesets
+- **Firewall save / restore** – snapshot and reload active firewall rules server-side
+- **Firewall export / import** – download the live `iptables` or `nftables` ruleset as a file; upload and immediately apply a previously exported file
+- **WireGuard config export** – download all `*.conf` files from `/etc/wireguard/` (single file or a ZIP archive when multiple interfaces are present)
+- **WireGuard config import** – upload a `.conf` file to `/etc/wireguard/` directly from the dashboard
 - **User authentication** – login/logout with configurable credentials (via environment variables)
 - **User management** – create, delete, and change passwords for multiple user accounts via the web UI
 
@@ -59,15 +63,15 @@ Then open **http://\<your-server\>:5000** in a browser and log in.
 └── app/
     ├── __init__.py     # Flask application factory
     ├── auth.py         # Login / logout blueprint
-    ├── routes.py       # Dashboard + API blueprints
+    ├── routes.py       # Dashboard + API blueprints (including export/import endpoints)
     ├── users.py        # User management blueprint
-    ├── wireguard.py    # WireGuard data collection & history
-    ├── firewall.py     # iptables / nftables reader
+    ├── wireguard.py    # WireGuard data collection, history & config export/import
+    ├── firewall.py     # iptables / nftables reader, save/restore & export/import
     ├── templates/
     │   ├── base.html
     │   ├── login.html
-    │   ├── dashboard.html
-    │   ├── firewall.html
+    │   ├── dashboard.html   # WireGuard config export/import card
+    │   ├── firewall.html    # Firewall rules + save/restore + export/import
     │   └── users.html
     └── static/
         ├── css/style.css
@@ -202,14 +206,28 @@ python -m pytest tests.py -v
 ### Dashboard
 ![Dashboard](https://github.com/user-attachments/assets/e815662b-3037-4409-a96b-b703f9515efa)
 
+### WireGuard Config Export / Import
+The dashboard now includes a **WireGuard Config Export / Import** card directly below the WireGuard Status section.
+
+- **Export Config** – downloads all `*.conf` files from `/etc/wireguard/` as a single file (one interface) or a ZIP archive (multiple interfaces).
+- **Import Config** – uploads a `.conf` file from your browser and writes it to `/etc/wireguard/` with mode `0600`. Restart the interface afterwards to apply the new configuration.
+
+![WireGuard Config Export/Import](https://github.com/user-attachments/assets/wireguard-export-import-placeholder)
+
 ### Firewall Rules
 ![Firewall Rules](https://github.com/user-attachments/assets/4897b603-e59b-4729-9d83-c1be6b868dc7)
+
+### Firewall Export / Import
+The **Save &amp; Restore Rules** panel on the Firewall page now exposes two additional buttons per ruleset:
+
+- **Export** – downloads the live ruleset (`iptables-save` / `nft list ruleset`) directly to your browser as `iptables.rules` or `nftables.rules`.
+- **Import** – uploads a rules file from your browser and immediately applies it (`iptables-restore` / `nft -f`). nftables import performs an automatic rollback to the previous ruleset if the new rules fail to load.
+
+![Firewall Export/Import](https://github.com/user-attachments/assets/firewall-export-import-placeholder)
 
 ### User Management
 ![User Management](https://github.com/user-attachments/assets/78d32ff9-4b4f-45af-ba11-27cb31ad744c)
 
 ### Create User
 ![Create User](https://github.com/user-attachments/assets/f5e58c7d-dddf-48d5-be78-f41e6ecc18bf)
-
-
 

@@ -7,6 +7,7 @@ stub data so the UI can still be exercised.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 import re
@@ -298,3 +299,55 @@ def _poll_loop(interval: float) -> None:
         except Exception:
             pass
         _stop_event.wait(interval)
+
+
+# ---------------------------------------------------------------------------
+# WireGuard config export / import
+# ---------------------------------------------------------------------------
+
+_WG_CONFIG_DIR = "/etc/wireguard"
+
+
+def export_wg_configs() -> Tuple[bool, Dict[str, str], str]:
+    """Read all ``*.conf`` files from the WireGuard config directory.
+
+    Returns ``(ok, {filename: content, ...}, error_message)``.
+    """
+    configs: Dict[str, str] = {}
+    try:
+        if not os.path.isdir(_WG_CONFIG_DIR):
+            return False, {}, f"Directory not found: {_WG_CONFIG_DIR}"
+        for fname in sorted(os.listdir(_WG_CONFIG_DIR)):
+            if not fname.endswith(".conf"):
+                continue
+            fpath = os.path.join(_WG_CONFIG_DIR, fname)
+            try:
+                with open(fpath) as f:
+                    configs[fname] = f.read()
+            except OSError as exc:
+                configs[fname] = f"# Error reading file: {exc}\n"
+    except OSError as exc:
+        return False, {}, str(exc)
+    if not configs:
+        return False, {}, "No WireGuard config files found in " + _WG_CONFIG_DIR
+    return True, configs, ""
+
+
+def import_wg_config(filename: str, content: str) -> Dict[str, Any]:
+    """Save a WireGuard config file to the WireGuard config directory.
+
+    *filename* must match ``[a-zA-Z0-9_-]+\\.conf`` to prevent path traversal.
+    The file is written with mode ``0600`` so only root can read the private key.
+    """
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+\.conf", filename):
+        return {"ok": False, "error": f"Invalid config filename: {filename!r}. "
+                                      "Only alphanumeric characters, hyphens, and underscores are allowed."}
+    fpath = os.path.join(_WG_CONFIG_DIR, filename)
+    try:
+        os.makedirs(_WG_CONFIG_DIR, exist_ok=True)
+        fd = os.open(fpath, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(content)
+    except OSError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, "path": fpath}

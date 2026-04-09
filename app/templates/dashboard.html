@@ -23,6 +23,36 @@
   </div>
 </div>
 
+<!-- ======================== WireGuard Config Export / Import ======================== -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-file-earmark-code-fill text-success"></i>
+        <span class="fw-semibold">WireGuard Config Export / Import</span>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Export downloads all <code>*.conf</code> files from <code>/etc/wireguard/</code>
+          (as a single file or a ZIP archive when multiple interfaces exist).
+          Import saves an uploaded <code>.conf</code> file back to <code>/etc/wireguard/</code>
+          — restart the interface after importing to apply the new configuration.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <a id="wg-export-btn" class="btn btn-sm btn-outline-success" href="/api/wireguard/export" download>
+            <i class="bi bi-download me-1"></i>Export Config
+          </a>
+          <label class="btn btn-sm btn-outline-info mb-0" title="Upload a .conf file to /etc/wireguard/">
+            <i class="bi bi-upload me-1"></i>Import Config
+            <input type="file" id="wg-import-input" class="d-none" accept=".conf">
+          </label>
+        </div>
+        <div id="wg-import-alert" class="mt-3" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ======================== Peer Status ======================== -->
 <div class="row g-3 mb-4">
   <div class="col-12">
@@ -120,4 +150,44 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+  // ── WireGuard config import ──────────────────────────────────────────────
+  (function () {
+    var input = document.getElementById('wg-import-input');
+    var alertEl = document.getElementById('wg-import-alert');
+
+    function showWgAlert(message, type) {
+      alertEl.className = 'mt-3 alert alert-' + type + ' alert-dismissible fade show';
+      alertEl.innerHTML = message
+        + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+      alertEl.style.display = '';
+    }
+
+    if (input) {
+      input.addEventListener('change', function () {
+        var file = input.files[0];
+        if (!file) return;
+        input.value = '';
+        if (!confirm('Import "' + file.name + '" to /etc/wireguard/?\n\nRestart the WireGuard interface after importing to apply the new configuration.')) return;
+        var formData = new FormData();
+        formData.append('file', file);
+        fetch('/api/wireguard/import', { method: 'POST', body: formData })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              showWgAlert('<i class="bi bi-check-circle-fill me-1"></i>'
+                + 'Config imported successfully to <code>' + (data.path || '/etc/wireguard/') + '</code>.'
+                + ' Restart the interface to apply.', 'success');
+            } else {
+              showWgAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>'
+                + 'Import failed: ' + (data.error || 'unknown error'), 'danger');
+            }
+          })
+          .catch(function (err) {
+            showWgAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>Request failed: ' + err, 'danger');
+          });
+      });
+    }
+  }());
+</script>
 {% endblock %}
