@@ -7,6 +7,7 @@ stub data so the UI can still be exercised.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 import re
@@ -298,3 +299,73 @@ def _poll_loop(interval: float) -> None:
         except Exception:
             pass
         _stop_event.wait(interval)
+
+
+# ---------------------------------------------------------------------------
+# WireGuard config export / import
+# ---------------------------------------------------------------------------
+
+_WG_CONFIG_DIR = "/etc/wireguard"
+
+
+def export_wg_configs() -> Tuple[bool, Dict[str, str], str]:
+    """Read all ``*.conf`` files from the WireGuard config directory.
+
+    Returns ``(ok, {filename: content, ...}, error_message)``.
+    When a file exists but cannot be read (e.g. permission error), a comment
+    line describing the error is stored as its value instead of the file
+    contents; the overall call still succeeds.
+    """
+    configs: Dict[str, str] = {}
+    try:
+        if not os.path.isdir(_WG_CONFIG_DIR):
+            return False, {}, "WireGuard config directory not found"
+        for fname in sorted(os.listdir(_WG_CONFIG_DIR)):
+            if not fname.endswith(".conf"):
+                continue
+            fpath = os.path.join(_WG_CONFIG_DIR, fname)
+            try:
+                with open(fpath) as f:
+                    configs[fname] = f.read()
+            except OSError as exc:
+                configs[fname] = f"# Error reading file: {exc}\n"
+    except OSError as exc:
+        return False, {}, str(exc)
+    if not configs:
+        return False, {}, "No WireGuard config files found"
+    return True, configs, ""
+
+
+def import_wg_config(filename: str, content: str) -> Dict[str, Any]:
+    """Save a WireGuard config file to the WireGuard config directory.
+
+    *filename* must consist only of alphanumeric characters, underscores, and
+    hyphens, and must end with ``.conf`` (e.g. ``wg0.conf``).  This prevents
+    path traversal attacks.  The file is written with mode ``0600`` so only
+    root can read the private key.  If individual config files cannot be read
+    during export they are represented as comment lines in the returned dict
+    value.
+    """
+    # Validate filename without regex to avoid ReDoS on adversarial input.
+    # The stem must be non-empty and contain only word characters and hyphens.
+    if not filename.endswith(".conf"):
+        return {"ok": False, "error": f"Invalid config filename: {filename!r}. "
+                                      "Filename must end with .conf."}
+    stem = filename[:-5]
+    _valid = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")
+    if not stem or not all(c in _valid for c in stem):
+        return {"ok": False, "error": f"Invalid config filename: {filename!r}. "
+                                      "Only alphanumeric characters, hyphens, and underscores are allowed."}
+    # Construct path from the validated stem only — never from the raw user string.
+    fpath = os.path.join(_WG_CONFIG_DIR, stem + ".conf")
+    # Belt-and-suspenders: verify the resolved path stays inside _WG_CONFIG_DIR.
+    if os.path.dirname(os.path.realpath(fpath)) != os.path.realpath(_WG_CONFIG_DIR):
+        return {"ok": False, "error": "Invalid config path"}
+    try:
+        os.makedirs(_WG_CONFIG_DIR, exist_ok=True)
+        fd = os.open(fpath, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(content)
+    except OSError:
+        return {"ok": False, "error": "Could not save config file (check server permissions)"}
+    return {"ok": True, "path": fpath}

@@ -92,6 +92,113 @@ def get_firewall_rules() -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def export_iptables_rules() -> Tuple[bool, str, str]:
+    """Return current iptables rules as a text string.
+
+    Returns ``(ok, content, error_message)``.
+    """
+    rc, out, err = _run(["iptables-save"])
+    if rc != 0:
+        return False, "", err.strip() or "iptables-save failed"
+    return True, out, ""
+
+
+def export_nftables_rules() -> Tuple[bool, str, str]:
+    """Return current nftables ruleset as a text string.
+
+    Returns ``(ok, content, error_message)``.
+    """
+    rc, out, err = _run(["nft", "list", "ruleset"])
+    if rc != 0:
+        return False, "", err.strip() or "nft not available"
+    return True, out, ""
+
+
+def _apply_iptables_rules(content: str) -> Dict[str, Any]:
+    """Apply iptables rules from *content* using ``iptables-restore``."""
+    try:
+        result = subprocess.run(
+            ["iptables-restore"],
+            input=content,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except FileNotFoundError:
+        return {"ok": False, "error": "Command not found: iptables-restore"}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": "Command timed out"}
+    if result.returncode != 0:
+        return {"ok": False, "error": result.stderr.strip() or "iptables-restore failed"}
+    return {"ok": True}
+
+
+def import_iptables_rules(content: str) -> Dict[str, Any]:
+    """Apply iptables rules supplied as a string.
+
+    The rules are fed directly to ``iptables-restore``.
+    """
+    return _apply_iptables_rules(content)
+
+
+def _apply_nftables_rules(content: str) -> Dict[str, Any]:
+    """Flush the current nftables ruleset and load *content*.
+
+    The previous ruleset is captured before flushing so it can be rolled back
+    if the new rules fail to apply.
+    """
+    rc_backup, current_rules, _ = _run(["nft", "list", "ruleset"])
+
+    rc_flush, _, err_flush = _run(["nft", "flush", "ruleset"])
+    if rc_flush != 0:
+        return {"ok": False, "error": err_flush.strip() or "nft flush ruleset failed"}
+
+    try:
+        result = subprocess.run(
+            ["nft", "-f", "/dev/stdin"],
+            input=content,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except FileNotFoundError:
+        return {"ok": False, "error": "Command not found: nft"}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": "Command timed out"}
+
+    if result.returncode != 0:
+        if rc_backup == 0 and current_rules:
+            try:
+                rb = subprocess.run(
+                    ["nft", "-f", "/dev/stdin"],
+                    input=current_rules,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                rollback_note = (
+                    " (previous ruleset restored)"
+                    if rb.returncode == 0
+                    else " (rollback also failed)"
+                )
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                rollback_note = " (rollback also failed)"
+        else:
+            rollback_note = ""
+        return {"ok": False, "error": (result.stderr.strip() or "nft -f failed") + rollback_note}
+
+    return {"ok": True}
+
+
+def import_nftables_rules(content: str) -> Dict[str, Any]:
+    """Apply nftables rules supplied as a string.
+
+    The current ruleset is captured before flushing so it can be rolled back if
+    applying the new rules fails.
+    """
+    return _apply_nftables_rules(content)
+
+
 def save_iptables_rules() -> Dict[str, Any]:
     """Save current iptables rules to a file using ``iptables-save``."""
     rc, out, err = _run(["iptables-save"])
@@ -117,21 +224,7 @@ def restore_iptables_rules() -> Dict[str, Any]:
             rules_content = f.read()
     except OSError as exc:
         return {"ok": False, "error": str(exc)}
-    try:
-        result = subprocess.run(
-            ["iptables-restore"],
-            input=rules_content,
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-    except FileNotFoundError:
-        return {"ok": False, "error": "Command not found: iptables-restore"}
-    except subprocess.TimeoutExpired:
-        return {"ok": False, "error": "Command timed out"}
-    if result.returncode != 0:
-        return {"ok": False, "error": result.stderr.strip() or "iptables-restore failed"}
-    return {"ok": True}
+    return _apply_iptables_rules(rules_content)
 
 
 def save_nftables_rules() -> Dict[str, Any]:
@@ -158,38 +251,12 @@ def restore_nftables_rules() -> Dict[str, Any]:
     path = _nftables_save_path()
     if not os.path.exists(path):
         return {"ok": False, "error": "No saved nftables rules found"}
-
-    # Capture the current ruleset so we can roll back if restore fails.
-    rc_backup, current_rules, _ = _run(["nft", "list", "ruleset"])
-
-    rc_flush, _, err_flush = _run(["nft", "flush", "ruleset"])
-    if rc_flush != 0:
-        return {"ok": False, "error": err_flush.strip() or "nft flush ruleset failed"}
-
-    rc, _, err = _run(["nft", "-f", path])
-    if rc != 0:
-        # Attempt to roll back to the pre-flush ruleset.
-        if rc_backup == 0 and current_rules:
-            try:
-                result = subprocess.run(
-                    ["nft", "-f", "/dev/stdin"],
-                    input=current_rules,
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-                rollback_note = (
-                    " (previous ruleset restored)"
-                    if result.returncode == 0
-                    else " (rollback also failed)"
-                )
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                rollback_note = " (rollback also failed)"
-        else:
-            rollback_note = ""
-        return {"ok": False, "error": (err.strip() or "nft -f failed") + rollback_note}
-
-    return {"ok": True}
+    try:
+        with open(path) as f:
+            saved_content = f.read()
+    except OSError as exc:
+        return {"ok": False, "error": str(exc)}
+    return _apply_nftables_rules(saved_content)
 
 
 def get_saved_rules_info() -> Dict[str, Any]:

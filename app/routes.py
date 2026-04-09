@@ -1,10 +1,13 @@
 """Main routes blueprint."""
 from __future__ import annotations
 
+import io
+import os
 import re
 import subprocess
+import zipfile
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, make_response, render_template, request, send_file
 from flask_login import login_required
 
 from . import wireguard, firewall
@@ -179,3 +182,132 @@ def api_firewall_restore():
     overall_ok = bool(results) and all(v.get("ok") for v in results.values())
     status_code = 200 if overall_ok else 500
     return jsonify({"ok": overall_ok, "results": results}), status_code
+
+
+# ---------------------------------------------------------------------------
+# Firewall export / import API
+# ---------------------------------------------------------------------------
+
+
+@main_bp.route("/api/firewall/export")
+@login_required
+def api_firewall_export():
+    """Export current firewall rules as a downloadable text file.
+
+    Query parameter ``type`` selects which ruleset to export:
+    ``iptables`` (default) or ``nftables``.
+    """
+    rule_type = request.args.get("type", "iptables").lower()
+    if rule_type not in ("iptables", "nftables"):
+        return jsonify({"ok": False, "error": "type must be 'iptables' or 'nftables'"}), 400
+
+    if rule_type == "iptables":
+        ok, content, error = firewall.export_iptables_rules()
+        filename = "iptables.rules"
+    else:
+        ok, content, error = firewall.export_nftables_rules()
+        filename = "nftables.rules"
+
+    if not ok:
+        return jsonify({"ok": False, "error": error}), 500
+
+    response = make_response(content)
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response.headers["Content-Type"] = "text/plain; charset=utf-8"
+    return response
+
+
+@main_bp.route("/api/firewall/import", methods=["POST"])
+@login_required
+def api_firewall_import():
+    """Import and immediately apply firewall rules from an uploaded file.
+
+    Expects a multipart form with:
+    - ``file``: the rules file
+    - ``type``: ``"iptables"`` or ``"nftables"``
+    """
+    if "file" not in request.files:
+        return jsonify({"ok": False, "error": "No file provided"}), 400
+    uploaded = request.files["file"]
+    if not uploaded.filename:
+        return jsonify({"ok": False, "error": "No filename provided"}), 400
+
+    rule_type = request.form.get("type", "").lower()
+    if rule_type not in ("iptables", "nftables"):
+        return jsonify({"ok": False, "error": "type must be 'iptables' or 'nftables'"}), 400
+
+    try:
+        content = uploaded.read().decode("utf-8")
+    except (UnicodeDecodeError, OSError):
+        return jsonify({"ok": False, "error": "Could not read uploaded file"}), 400
+
+    if rule_type == "iptables":
+        result = firewall.import_iptables_rules(content)
+    else:
+        result = firewall.import_nftables_rules(content)
+
+    status_code = 200 if result["ok"] else 500
+    return jsonify(result), status_code
+
+
+# ---------------------------------------------------------------------------
+# WireGuard config export / import API
+# ---------------------------------------------------------------------------
+
+
+@main_bp.route("/api/wireguard/export")
+@login_required
+def api_wireguard_export():
+    """Export WireGuard config file(s) as a download.
+
+    If a single ``.conf`` file is found it is returned as plain text.
+    If multiple files are found they are bundled in a ZIP archive.
+    """
+    ok, configs, error = wireguard.export_wg_configs()
+    if not ok:
+        return jsonify({"ok": False, "error": "Failed to read WireGuard configs"}), 500
+
+    if len(configs) == 1:
+        fname, content = next(iter(configs.items()))
+        response = make_response(content)
+        response.headers["Content-Disposition"] = f'attachment; filename="{fname}"'
+        response.headers["Content-Type"] = "text/plain; charset=utf-8"
+        return response
+
+    # Multiple configs: bundle as a ZIP
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for fname, content in configs.items():
+            zf.writestr(fname, content)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name="wireguard-configs.zip",
+    )
+
+
+@main_bp.route("/api/wireguard/import", methods=["POST"])
+@login_required
+def api_wireguard_import():
+    """Import a WireGuard config file and save it to the config directory.
+
+    Expects a multipart form with a ``file`` field containing a ``.conf`` file.
+    The original filename is used as the destination name.
+    """
+    if "file" not in request.files:
+        return jsonify({"ok": False, "error": "No file provided"}), 400
+    uploaded = request.files["file"]
+    if not uploaded.filename:
+        return jsonify({"ok": False, "error": "No filename provided"}), 400
+
+    filename = os.path.basename(uploaded.filename)
+    try:
+        content = uploaded.read().decode("utf-8")
+    except (UnicodeDecodeError, OSError):
+        return jsonify({"ok": False, "error": "Could not read uploaded file"}), 400
+
+    result = wireguard.import_wg_config(filename, content)
+    status_code = 200 if result["ok"] else 500
+    return jsonify(result), status_code

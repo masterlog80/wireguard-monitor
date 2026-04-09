@@ -387,8 +387,12 @@ Chain OUTPUT (policy ACCEPT 42 packets, 1024 bytes)
             tmp_path = f.name
 
         try:
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stderr = ""
             with patch.object(firewall, "_nftables_save_path", return_value=tmp_path), \
-                 patch.object(firewall, "_run", return_value=(0, "", "")):
+                 patch.object(firewall, "_run", return_value=(0, "", "")), \
+                 patch("app.firewall.subprocess.run", return_value=mock_result):
                 result = firewall.restore_nftables_rules()
             self.assertTrue(result["ok"])
         finally:
@@ -781,6 +785,470 @@ class TestPeerNames(unittest.TestCase):
         store2 = pn_mod.PeerNameStore(self.NAMES_FILE)
         self.assertEqual(store2.get(pubkey), "Persisted")
 
+
+class TestFirewallExportImport(unittest.TestCase):
+    """Tests for the firewall export/import helper functions and API routes."""
+
+    def setUp(self):
+        _reset_user_store()
+        from app import create_app
+        self.app = create_app()
+        self.app.testing = True
+        self.client = self.app.test_client()
+        self._login()
+
+    def tearDown(self):
+        _reset_user_store()
+
+    def _login(self):
+        self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+        )
+
+    # ------------------------------------------------------------------
+    # firewall.py unit tests
+    # ------------------------------------------------------------------
+
+    def test_export_iptables_rules_success(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(0, "*filter\nCOMMIT\n", "")):
+            ok, content, error = firewall.export_iptables_rules()
+
+        self.assertTrue(ok)
+        self.assertIn("*filter", content)
+        self.assertEqual(error, "")
+
+    def test_export_iptables_rules_failure(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(1, "", "iptables-save failed")):
+            ok, content, error = firewall.export_iptables_rules()
+
+        self.assertFalse(ok)
+        self.assertIn("iptables-save failed", error)
+
+    def test_export_nftables_rules_success(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(0, "table ip filter {}\n", "")):
+            ok, content, error = firewall.export_nftables_rules()
+
+        self.assertTrue(ok)
+        self.assertIn("table ip filter", content)
+        self.assertEqual(error, "")
+
+    def test_export_nftables_rules_failure(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(1, "", "nft not available")):
+            ok, content, error = firewall.export_nftables_rules()
+
+        self.assertFalse(ok)
+        self.assertIn("nft not available", error)
+
+    def test_import_iptables_rules_success(self):
+        from app import firewall
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+        with patch("app.firewall.subprocess.run", return_value=mock_result):
+            result = firewall.import_iptables_rules("*filter\nCOMMIT\n")
+
+        self.assertTrue(result["ok"])
+
+    def test_import_iptables_rules_failure(self):
+        from app import firewall
+
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "Bad rule"
+        with patch("app.firewall.subprocess.run", return_value=mock_result):
+            result = firewall.import_iptables_rules("bad content")
+
+        self.assertFalse(result["ok"])
+        self.assertIn("Bad rule", result["error"])
+
+    def test_import_nftables_rules_success(self):
+        from app import firewall
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+        # _run is used for flush+backup; subprocess.run is used for the apply step
+        with patch.object(firewall, "_run", return_value=(0, "table ip filter {}\n", "")), \
+             patch("app.firewall.subprocess.run", return_value=mock_result):
+            result = firewall.import_nftables_rules("table ip filter {}\n")
+
+        self.assertTrue(result["ok"])
+
+    def test_import_nftables_rules_failure_with_rollback(self):
+        from app import firewall
+
+        mock_fail = MagicMock()
+        mock_fail.returncode = 1
+        mock_fail.stderr = "syntax error"
+
+        mock_rollback = MagicMock()
+        mock_rollback.returncode = 0
+
+        def fake_run_side_effect(*args, **kwargs):
+            # First call is the apply step (returns failure), second is rollback
+            if not hasattr(fake_run_side_effect, "calls"):
+                fake_run_side_effect.calls = 0
+            fake_run_side_effect.calls += 1
+            return mock_fail if fake_run_side_effect.calls == 1 else mock_rollback
+
+        with patch.object(firewall, "_run", return_value=(0, "table ip filter {}\n", "")), \
+             patch("app.firewall.subprocess.run", side_effect=fake_run_side_effect):
+            result = firewall.import_nftables_rules("bad nft content")
+
+        self.assertFalse(result["ok"])
+        self.assertIn("syntax error", result["error"])
+
+    # ------------------------------------------------------------------
+    # restore_nftables_rules refactoring regression test
+    # ------------------------------------------------------------------
+
+    def test_restore_nftables_rules_uses_apply_helper(self):
+        """restore_nftables_rules should still apply rules correctly after refactor."""
+        import tempfile
+        from app import firewall
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".rules", delete=False) as f:
+            f.write("table ip filter {}\n")
+            tmp_path = f.name
+
+        try:
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stderr = ""
+            with patch.object(firewall, "_nftables_save_path", return_value=tmp_path), \
+                 patch.object(firewall, "_run", return_value=(0, "", "")), \
+                 patch("app.firewall.subprocess.run", return_value=mock_result):
+                result = firewall.restore_nftables_rules()
+            self.assertTrue(result["ok"])
+        finally:
+            os.unlink(tmp_path)
+
+    # ------------------------------------------------------------------
+    # Route tests
+    # ------------------------------------------------------------------
+
+    def test_firewall_export_iptables(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(0, "*filter\nCOMMIT\n", "")):
+            resp = self.client.get("/api/firewall/export?type=iptables")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"*filter", resp.data)
+        self.assertIn("attachment", resp.headers.get("Content-Disposition", ""))
+        self.assertIn("iptables.rules", resp.headers.get("Content-Disposition", ""))
+
+    def test_firewall_export_nftables(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(0, "table ip filter {}\n", "")):
+            resp = self.client.get("/api/firewall/export?type=nftables")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"table ip filter", resp.data)
+        self.assertIn("nftables.rules", resp.headers.get("Content-Disposition", ""))
+
+    def test_firewall_export_invalid_type(self):
+        resp = self.client.get("/api/firewall/export?type=both")
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.get_json()["ok"])
+
+    def test_firewall_export_requires_login(self):
+        self.client.get("/logout")
+        resp = self.client.get("/api/firewall/export?type=iptables", follow_redirects=False)
+        self.assertIn(resp.status_code, (301, 302))
+
+    def test_firewall_export_failure_returns_500(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(1, "", "permission denied")):
+            resp = self.client.get("/api/firewall/export?type=iptables")
+
+        self.assertEqual(resp.status_code, 500)
+        self.assertFalse(resp.get_json()["ok"])
+
+    def test_firewall_import_iptables(self):
+        from app import firewall
+        import io
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+        with patch("app.firewall.subprocess.run", return_value=mock_result):
+            resp = self.client.post(
+                "/api/firewall/import",
+                data={"type": "iptables",
+                      "file": (io.BytesIO(b"*filter\nCOMMIT\n"), "iptables.rules")},
+                content_type="multipart/form-data",
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.get_json()["ok"])
+
+    def test_firewall_import_nftables(self):
+        import io
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+        with patch("app.firewall._run", return_value=(0, "table ip filter {}\n", "")), \
+             patch("app.firewall.subprocess.run", return_value=mock_result):
+            resp = self.client.post(
+                "/api/firewall/import",
+                data={"type": "nftables",
+                      "file": (io.BytesIO(b"table ip filter {}\n"), "nftables.rules")},
+                content_type="multipart/form-data",
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.get_json()["ok"])
+
+    def test_firewall_import_no_file(self):
+        resp = self.client.post(
+            "/api/firewall/import",
+            data={"type": "iptables"},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.get_json()["ok"])
+
+    def test_firewall_import_invalid_type(self):
+        import io
+
+        resp = self.client.post(
+            "/api/firewall/import",
+            data={"type": "both",
+                  "file": (io.BytesIO(b"*filter\nCOMMIT\n"), "rules.txt")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.get_json()["ok"])
+
+    def test_firewall_import_requires_login(self):
+        self.client.get("/logout")
+        resp = self.client.post("/api/firewall/import", follow_redirects=False)
+        self.assertIn(resp.status_code, (301, 302))
+
+
+class TestWireguardExportImport(unittest.TestCase):
+    """Tests for the WireGuard config export/import helper functions and API routes."""
+
+    def setUp(self):
+        _reset_user_store()
+        from app import create_app
+        self.app = create_app()
+        self.app.testing = True
+        self.client = self.app.test_client()
+        self._login()
+
+    def tearDown(self):
+        _reset_user_store()
+
+    def _login(self):
+        self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+        )
+
+    # ------------------------------------------------------------------
+    # wireguard.py unit tests
+    # ------------------------------------------------------------------
+
+    def test_export_wg_configs_no_directory(self):
+        from app import wireguard
+
+        with patch.object(wireguard.os.path, "isdir", return_value=False):
+            ok, configs, error = wireguard.export_wg_configs()
+
+        self.assertFalse(ok)
+        self.assertIn("not found", error)
+
+    def test_export_wg_configs_no_conf_files(self):
+        from app import wireguard
+
+        with patch.object(wireguard.os.path, "isdir", return_value=True), \
+             patch.object(wireguard.os, "listdir", return_value=["readme.txt"]):
+            ok, configs, error = wireguard.export_wg_configs()
+
+        self.assertFalse(ok)
+        self.assertIn("No WireGuard config files found", error)
+
+    def test_export_wg_configs_success(self):
+        import tempfile
+        import shutil
+        from app import wireguard
+
+        tmpdir = tempfile.mkdtemp()
+        try:
+            conf_content = "[Interface]\nPrivateKey = abc123\n"
+            with open(os.path.join(tmpdir, "wg0.conf"), "w") as f:
+                f.write(conf_content)
+
+            orig_dir = wireguard._WG_CONFIG_DIR
+            wireguard._WG_CONFIG_DIR = tmpdir
+            try:
+                ok, configs, error = wireguard.export_wg_configs()
+            finally:
+                wireguard._WG_CONFIG_DIR = orig_dir
+        finally:
+            shutil.rmtree(tmpdir)
+
+        self.assertTrue(ok)
+        self.assertIn("wg0.conf", configs)
+        self.assertIn("PrivateKey", configs["wg0.conf"])
+
+    def test_import_wg_config_invalid_filename(self):
+        from app import wireguard
+
+        result = wireguard.import_wg_config("../etc/passwd", "malicious")
+        self.assertFalse(result["ok"])
+        self.assertIn("Invalid config filename", result["error"])
+
+    def test_import_wg_config_no_conf_extension(self):
+        from app import wireguard
+
+        result = wireguard.import_wg_config("wg0.sh", "content")
+        self.assertFalse(result["ok"])
+
+    def test_import_wg_config_success(self):
+        import tempfile
+        import shutil
+        from app import wireguard
+
+        tmpdir = tempfile.mkdtemp()
+        orig_dir = wireguard._WG_CONFIG_DIR
+        wireguard._WG_CONFIG_DIR = tmpdir
+        try:
+            result = wireguard.import_wg_config("wg0.conf", "[Interface]\nPrivateKey = xyz\n")
+            self.assertTrue(result["ok"])
+            self.assertTrue(os.path.exists(os.path.join(tmpdir, "wg0.conf")))
+            mode = oct(os.stat(os.path.join(tmpdir, "wg0.conf")).st_mode)
+            self.assertTrue(mode.endswith("600"))
+        finally:
+            wireguard._WG_CONFIG_DIR = orig_dir
+            shutil.rmtree(tmpdir)
+
+    # ------------------------------------------------------------------
+    # Route tests
+    # ------------------------------------------------------------------
+
+    def test_wireguard_export_single_config(self):
+        import tempfile
+        import shutil
+        from app import wireguard
+
+        tmpdir = tempfile.mkdtemp()
+        try:
+            with open(os.path.join(tmpdir, "wg0.conf"), "w") as f:
+                f.write("[Interface]\nPrivateKey = abc\n")
+
+            orig_dir = wireguard._WG_CONFIG_DIR
+            wireguard._WG_CONFIG_DIR = tmpdir
+            try:
+                resp = self.client.get("/api/wireguard/export")
+            finally:
+                wireguard._WG_CONFIG_DIR = orig_dir
+        finally:
+            shutil.rmtree(tmpdir)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"[Interface]", resp.data)
+        self.assertIn("wg0.conf", resp.headers.get("Content-Disposition", ""))
+
+    def test_wireguard_export_multiple_configs_returns_zip(self):
+        import tempfile
+        import shutil
+        import zipfile as zf
+        from app import wireguard
+
+        tmpdir = tempfile.mkdtemp()
+        try:
+            for name in ("wg0.conf", "wg1.conf"):
+                with open(os.path.join(tmpdir, name), "w") as f:
+                    f.write(f"[Interface]\n# {name}\n")
+
+            orig_dir = wireguard._WG_CONFIG_DIR
+            wireguard._WG_CONFIG_DIR = tmpdir
+            try:
+                resp = self.client.get("/api/wireguard/export")
+            finally:
+                wireguard._WG_CONFIG_DIR = orig_dir
+        finally:
+            shutil.rmtree(tmpdir)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.content_type, "application/zip")
+        import io
+        with zf.ZipFile(io.BytesIO(resp.data)) as z:
+            names = z.namelist()
+        self.assertIn("wg0.conf", names)
+        self.assertIn("wg1.conf", names)
+
+    def test_wireguard_export_no_configs_returns_500(self):
+        from app import wireguard
+
+        with patch.object(wireguard.os.path, "isdir", return_value=False):
+            resp = self.client.get("/api/wireguard/export")
+
+        self.assertEqual(resp.status_code, 500)
+        self.assertFalse(resp.get_json()["ok"])
+
+    def test_wireguard_export_requires_login(self):
+        self.client.get("/logout")
+        resp = self.client.get("/api/wireguard/export", follow_redirects=False)
+        self.assertIn(resp.status_code, (301, 302))
+
+    def test_wireguard_import_success(self):
+        import tempfile
+        import shutil
+        import io
+        from app import wireguard
+
+        tmpdir = tempfile.mkdtemp()
+        orig_dir = wireguard._WG_CONFIG_DIR
+        wireguard._WG_CONFIG_DIR = tmpdir
+        try:
+            resp = self.client.post(
+                "/api/wireguard/import",
+                data={"file": (io.BytesIO(b"[Interface]\nPrivateKey = xyz\n"), "wg0.conf")},
+                content_type="multipart/form-data",
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertTrue(resp.get_json()["ok"])
+            self.assertTrue(os.path.exists(os.path.join(tmpdir, "wg0.conf")))
+        finally:
+            wireguard._WG_CONFIG_DIR = orig_dir
+            shutil.rmtree(tmpdir)
+
+    def test_wireguard_import_invalid_filename(self):
+        import io
+
+        resp = self.client.post(
+            "/api/wireguard/import",
+            data={"file": (io.BytesIO(b"content"), "../etc/passwd")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(resp.status_code, 500)
+        self.assertFalse(resp.get_json()["ok"])
+
+    def test_wireguard_import_no_file(self):
+        resp = self.client.post(
+            "/api/wireguard/import",
+            data={},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.get_json()["ok"])
 
 if __name__ == "__main__":
     unittest.main()

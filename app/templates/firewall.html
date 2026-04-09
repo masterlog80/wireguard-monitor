@@ -19,13 +19,20 @@
             <div class="d-flex flex-column gap-2">
               <span class="fw-semibold"><i class="bi bi-fire text-warning me-1"></i>iptables</span>
               <div id="iptables-snapshot-info" class="text-muted small">Loading…</div>
-              <div class="d-flex gap-2">
+              <div class="d-flex flex-wrap gap-2">
                 <button class="btn btn-sm btn-outline-primary" onclick="saveRules('iptables')">
                   <i class="bi bi-cloud-arrow-down-fill me-1"></i>Save current rules
                 </button>
                 <button class="btn btn-sm btn-outline-warning" onclick="restoreRules('iptables')">
                   <i class="bi bi-arrow-counterclockwise me-1"></i>Restore saved rules
                 </button>
+                <a class="btn btn-sm btn-outline-success" href="/api/firewall/export?type=iptables" download>
+                  <i class="bi bi-download me-1"></i>Export
+                </a>
+                <label class="btn btn-sm btn-outline-info mb-0" title="Import and apply iptables rules from a file">
+                  <i class="bi bi-upload me-1"></i>Import
+                  <input type="file" class="d-none" accept=".rules,.txt" onchange="importRules('iptables', this)">
+                </label>
               </div>
             </div>
           </div>
@@ -35,13 +42,20 @@
             <div class="d-flex flex-column gap-2">
               <span class="fw-semibold"><i class="bi bi-shield-fill-exclamation text-warning me-1"></i>nftables</span>
               <div id="nftables-snapshot-info" class="text-muted small">Loading…</div>
-              <div class="d-flex gap-2">
+              <div class="d-flex flex-wrap gap-2">
                 <button class="btn btn-sm btn-outline-primary" onclick="saveRules('nftables')">
                   <i class="bi bi-cloud-arrow-down-fill me-1"></i>Save current rules
                 </button>
                 <button class="btn btn-sm btn-outline-warning" onclick="restoreRules('nftables')">
                   <i class="bi bi-arrow-counterclockwise me-1"></i>Restore saved rules
                 </button>
+                <a class="btn btn-sm btn-outline-success" href="/api/firewall/export?type=nftables" download>
+                  <i class="bi bi-download me-1"></i>Export
+                </a>
+                <label class="btn btn-sm btn-outline-info mb-0" title="Import and apply nftables rules from a file">
+                  <i class="bi bi-upload me-1"></i>Import
+                  <input type="file" class="d-none" accept=".rules,.txt" onchange="importRules('nftables', this)">
+                </label>
               </div>
             </div>
           </div>
@@ -169,6 +183,34 @@
     el.innerHTML = message
       + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
     el.style.display = '';
+  }
+
+  function importRules(type, inputEl) {
+    var file = inputEl.files[0];
+    if (!file) return;
+    // Reset the input so the same file can be re-selected if needed
+    inputEl.value = '';
+    if (!confirm('Import and immediately apply the selected ' + type + ' rules file?\n\nThis will overwrite the current active rules.')) return;
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+    fetch('/api/firewall/import', {
+      method: 'POST',
+      body: formData
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        showAlert('<i class="bi bi-check-circle-fill me-1"></i>'
+          + type + ' rules imported and applied successfully.', 'success');
+      } else {
+        showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>'
+          + 'Import failed: ' + (data.error || 'unknown error'), 'danger');
+      }
+    })
+    .catch(function(err) {
+      showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>Request failed: ' + err, 'danger');
+    });
   }
 
   function saveRules(type) {
