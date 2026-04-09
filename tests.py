@@ -985,7 +985,6 @@ class TestFirewallExportImport(unittest.TestCase):
         mock_result.returncode = 0
         mock_result.stderr = ""
         with patch("app.firewall.subprocess.run", return_value=mock_result):
-            data = {"type": "iptables"}
             resp = self.client.post(
                 "/api/firewall/import",
                 data={"type": "iptables",

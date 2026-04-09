@@ -265,7 +265,7 @@ def api_wireguard_export():
     """
     ok, configs, error = wireguard.export_wg_configs()
     if not ok:
-        return jsonify({"ok": False, "error": error}), 500
+        return jsonify({"ok": False, "error": "Failed to read WireGuard configs"}), 500
 
     if len(configs) == 1:
         fname, content = next(iter(configs.items()))

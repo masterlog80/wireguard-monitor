@@ -339,23 +339,30 @@ def export_wg_configs() -> Tuple[bool, Dict[str, str], str]:
 def import_wg_config(filename: str, content: str) -> Dict[str, Any]:
     """Save a WireGuard config file to the WireGuard config directory.
 
-    *filename* must match ``[a-zA-Z0-9_\\-]+\\.conf`` to prevent path traversal.
-    The file is written with mode ``0600`` so only root can read the private key.
-    If individual config files cannot be read during export they are represented
-    as comment lines in the returned dict value.
+    *filename* must consist only of alphanumeric characters, underscores, and
+    hyphens, and must end with ``.conf`` (e.g. ``wg0.conf``).  This prevents
+    path traversal attacks.  The file is written with mode ``0600`` so only
+    root can read the private key.  If individual config files cannot be read
+    during export they are represented as comment lines in the returned dict
+    value.
     """
-    # Anchored regex: only word chars, hyphens, and the .conf extension are allowed.
-    # The hyphen is escaped explicitly to avoid any ambiguity in the character class.
-    if not re.fullmatch(r"[a-zA-Z0-9_\-]+\.conf", filename):
+    # Validate filename without regex to avoid ReDoS on adversarial input.
+    # The stem must be non-empty and contain only word characters and hyphens.
+    if not filename.endswith(".conf"):
+        return {"ok": False, "error": f"Invalid config filename: {filename!r}. "
+                                      "Filename must end with .conf."}
+    stem = filename[:-5]
+    _valid = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")
+    if not stem or not all(c in _valid for c in stem):
         return {"ok": False, "error": f"Invalid config filename: {filename!r}. "
                                       "Only alphanumeric characters, hyphens, and underscores are allowed."}
-    # _WG_CONFIG_DIR is a trusted constant; filename is validated above.
-    fpath = os.path.join(_WG_CONFIG_DIR, filename)  # noqa: S603 – path validated by regex
+    # Construct path from the validated stem only — never from the raw user string.
+    fpath = os.path.join(_WG_CONFIG_DIR, stem + ".conf")
     try:
         os.makedirs(_WG_CONFIG_DIR, exist_ok=True)
         fd = os.open(fpath, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
             f.write(content)
-    except OSError as exc:
-        return {"ok": False, "error": str(exc)}
+    except OSError:
+        return {"ok": False, "error": "Could not save config file (check server permissions for /etc/wireguard/)"}
     return {"ok": True, "path": fpath}
