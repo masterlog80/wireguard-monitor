@@ -2,6 +2,16 @@
 
 A Flask-based web application running on Linux (port 5000) that provides a real-time monitoring UI for WireGuard VPN.
 
+## Features
+
+- **WireGuard status** – interface name, public key, listening port
+- **Peer status table** – shows each peer's endpoint, allowed IPs, last handshake and connected/disconnected state
+- **Throughput graphs** – per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds
+- **Ping latency graphs** – per-peer round-trip time chart, refreshed every 5 seconds
+- **Firewall rules page** – displays both `iptables` and `nftables` rulesets
+- **User authentication** – login/logout with configurable credentials (via environment variables)
+- **User management** – create, delete, and change passwords for multiple user accounts via the web UI
+
 ## Requirements
 
 - Python 3.10+
@@ -28,34 +38,6 @@ python run.py
 ```
 
 Then open **http://\<your-server\>:5000** in a browser and log in.
-
-## Screenshots
-
-### Login Page
-![Login Page](https://github.com/user-attachments/assets/116594ca-444b-4550-a636-6807083fd029)
-
-### Dashboard
-![Dashboard](https://github.com/user-attachments/assets/e815662b-3037-4409-a96b-b703f9515efa)
-
-### Firewall Rules
-![Firewall Rules](https://github.com/user-attachments/assets/4897b603-e59b-4729-9d83-c1be6b868dc7)
-
-### User Management
-![User Management](https://github.com/user-attachments/assets/78d32ff9-4b4f-45af-ba11-27cb31ad744c)
-
-### Create User
-![Create User](https://github.com/user-attachments/assets/f5e58c7d-dddf-48d5-be78-f41e6ecc18bf)
-
-## Features
-
-- **WireGuard status** – interface name, public key, listening port
-- **Peer status table** – shows each peer's endpoint, allowed IPs, last handshake and connected/disconnected state
-- **Throughput graphs** – per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds
-- **Ping latency graphs** – per-peer round-trip time chart, refreshed every 5 seconds
-- **Firewall rules page** – displays both `iptables` and `nftables` rulesets
-- **User authentication** – login/logout with configurable credentials (via environment variables)
-- **User management** – create, delete, and change passwords for multiple user accounts via the web UI
-
 
 ## Configuration
 
@@ -173,3 +155,23 @@ Open **http://\<your-server\>:5000** in a browser to confirm the UI is available
 pip install pytest
 python -m pytest tests.py -v
 ```
+
+## Screenshots
+
+### Login Page
+![Login Page](https://github.com/user-attachments/assets/116594ca-444b-4550-a636-6807083fd029)
+
+### Dashboard
+![Dashboard](https://github.com/user-attachments/assets/e815662b-3037-4409-a96b-b703f9515efa)
+
+### Firewall Rules
+![Firewall Rules](https://github.com/user-attachments/assets/4897b603-e59b-4729-9d83-c1be6b868dc7)
+
+### User Management
+![User Management](https://github.com/user-attachments/assets/78d32ff9-4b4f-45af-ba11-27cb31ad744c)
+
+### Create User
+![Create User](https://github.com/user-attachments/assets/f5e58c7d-dddf-48d5-be78-f41e6ecc18bf)
+
+
+
