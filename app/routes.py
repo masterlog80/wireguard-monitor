@@ -212,7 +212,7 @@ def api_firewall_export():
         return jsonify({"ok": False, "error": error}), 500
 
     response = make_response(content)
-    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     response.headers["Content-Type"] = "text/plain; charset=utf-8"
     return response
 
@@ -238,8 +238,8 @@ def api_firewall_import():
 
     try:
         content = uploaded.read().decode("utf-8")
-    except (UnicodeDecodeError, OSError) as exc:
-        return jsonify({"ok": False, "error": f"Could not read file: {exc}"}), 400
+    except (UnicodeDecodeError, OSError):
+        return jsonify({"ok": False, "error": "Could not read uploaded file"}), 400
 
     if rule_type == "iptables":
         result = firewall.import_iptables_rules(content)
@@ -270,7 +270,7 @@ def api_wireguard_export():
     if len(configs) == 1:
         fname, content = next(iter(configs.items()))
         response = make_response(content)
-        response.headers["Content-Disposition"] = f"attachment; filename={fname}"
+        response.headers["Content-Disposition"] = f'attachment; filename="{fname}"'
         response.headers["Content-Type"] = "text/plain; charset=utf-8"
         return response
 
@@ -305,8 +305,8 @@ def api_wireguard_import():
     filename = os.path.basename(uploaded.filename)
     try:
         content = uploaded.read().decode("utf-8")
-    except (UnicodeDecodeError, OSError) as exc:
-        return jsonify({"ok": False, "error": f"Could not read file: {exc}"}), 400
+    except (UnicodeDecodeError, OSError):
+        return jsonify({"ok": False, "error": "Could not read uploaded file"}), 400
 
     result = wireguard.import_wg_config(filename, content)
     status_code = 200 if result["ok"] else 500

@@ -979,7 +979,7 @@ class TestFirewallExportImport(unittest.TestCase):
 
     def test_firewall_import_iptables(self):
         from app import firewall
-        import io as io_module
+        import io
 
         mock_result = MagicMock()
         mock_result.returncode = 0
@@ -989,7 +989,7 @@ class TestFirewallExportImport(unittest.TestCase):
             resp = self.client.post(
                 "/api/firewall/import",
                 data={"type": "iptables",
-                      "file": (io_module.BytesIO(b"*filter\nCOMMIT\n"), "iptables.rules")},
+                      "file": (io.BytesIO(b"*filter\nCOMMIT\n"), "iptables.rules")},
                 content_type="multipart/form-data",
             )
 
@@ -997,7 +997,7 @@ class TestFirewallExportImport(unittest.TestCase):
         self.assertTrue(resp.get_json()["ok"])
 
     def test_firewall_import_nftables(self):
-        import io as io_module
+        import io
 
         mock_result = MagicMock()
         mock_result.returncode = 0
@@ -1007,7 +1007,7 @@ class TestFirewallExportImport(unittest.TestCase):
             resp = self.client.post(
                 "/api/firewall/import",
                 data={"type": "nftables",
-                      "file": (io_module.BytesIO(b"table ip filter {}\n"), "nftables.rules")},
+                      "file": (io.BytesIO(b"table ip filter {}\n"), "nftables.rules")},
                 content_type="multipart/form-data",
             )
 
@@ -1024,12 +1024,12 @@ class TestFirewallExportImport(unittest.TestCase):
         self.assertFalse(resp.get_json()["ok"])
 
     def test_firewall_import_invalid_type(self):
-        import io as io_module
+        import io
 
         resp = self.client.post(
             "/api/firewall/import",
             data={"type": "both",
-                  "file": (io_module.BytesIO(b"*filter\nCOMMIT\n"), "rules.txt")},
+                  "file": (io.BytesIO(b"*filter\nCOMMIT\n"), "rules.txt")},
             content_type="multipart/form-data",
         )
         self.assertEqual(resp.status_code, 400)
@@ -1189,8 +1189,8 @@ class TestWireguardExportImport(unittest.TestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.content_type, "application/zip")
-        import io as io_module
-        with zf.ZipFile(io_module.BytesIO(resp.data)) as z:
+        import io
+        with zf.ZipFile(io.BytesIO(resp.data)) as z:
             names = z.namelist()
         self.assertIn("wg0.conf", names)
         self.assertIn("wg1.conf", names)
@@ -1212,7 +1212,7 @@ class TestWireguardExportImport(unittest.TestCase):
     def test_wireguard_import_success(self):
         import tempfile
         import shutil
-        import io as io_module
+        import io
         from app import wireguard
 
         tmpdir = tempfile.mkdtemp()
@@ -1221,7 +1221,7 @@ class TestWireguardExportImport(unittest.TestCase):
         try:
             resp = self.client.post(
                 "/api/wireguard/import",
-                data={"file": (io_module.BytesIO(b"[Interface]\nPrivateKey = xyz\n"), "wg0.conf")},
+                data={"file": (io.BytesIO(b"[Interface]\nPrivateKey = xyz\n"), "wg0.conf")},
                 content_type="multipart/form-data",
             )
             self.assertEqual(resp.status_code, 200)
@@ -1232,11 +1232,11 @@ class TestWireguardExportImport(unittest.TestCase):
             shutil.rmtree(tmpdir)
 
     def test_wireguard_import_invalid_filename(self):
-        import io as io_module
+        import io
 
         resp = self.client.post(
             "/api/wireguard/import",
-            data={"file": (io_module.BytesIO(b"content"), "../etc/passwd")},
+            data={"file": (io.BytesIO(b"content"), "../etc/passwd")},
             content_type="multipart/form-data",
         )
         self.assertEqual(resp.status_code, 500)

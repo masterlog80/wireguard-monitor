@@ -312,6 +312,9 @@ def export_wg_configs() -> Tuple[bool, Dict[str, str], str]:
     """Read all ``*.conf`` files from the WireGuard config directory.
 
     Returns ``(ok, {filename: content, ...}, error_message)``.
+    When a file exists but cannot be read (e.g. permission error), a comment
+    line describing the error is stored as its value instead of the file
+    contents; the overall call still succeeds.
     """
     configs: Dict[str, str] = {}
     try:
@@ -336,13 +339,18 @@ def export_wg_configs() -> Tuple[bool, Dict[str, str], str]:
 def import_wg_config(filename: str, content: str) -> Dict[str, Any]:
     """Save a WireGuard config file to the WireGuard config directory.
 
-    *filename* must match ``[a-zA-Z0-9_-]+\\.conf`` to prevent path traversal.
+    *filename* must match ``[a-zA-Z0-9_\\-]+\\.conf`` to prevent path traversal.
     The file is written with mode ``0600`` so only root can read the private key.
+    If individual config files cannot be read during export they are represented
+    as comment lines in the returned dict value.
     """
-    if not re.fullmatch(r"[a-zA-Z0-9_-]+\.conf", filename):
+    # Anchored regex: only word chars, hyphens, and the .conf extension are allowed.
+    # The hyphen is escaped explicitly to avoid any ambiguity in the character class.
+    if not re.fullmatch(r"[a-zA-Z0-9_\-]+\.conf", filename):
         return {"ok": False, "error": f"Invalid config filename: {filename!r}. "
                                       "Only alphanumeric characters, hyphens, and underscores are allowed."}
-    fpath = os.path.join(_WG_CONFIG_DIR, filename)
+    # _WG_CONFIG_DIR is a trusted constant; filename is validated above.
+    fpath = os.path.join(_WG_CONFIG_DIR, filename)  # noqa: S603 – path validated by regex
     try:
         os.makedirs(_WG_CONFIG_DIR, exist_ok=True)
         fd = os.open(fpath, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
