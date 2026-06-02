@@ -1,117 +1,106 @@
 # wireguard-monitor-copilot
 
-A Flask-based web application running on Linux (port 5000) that provides a real-time monitoring UI for WireGuard VPN.
+A Flask-based web application that provides a real-time monitoring dashboard for WireGuard VPN on Linux. Displays peer status, live throughput and latency graphs, firewall rules, and supports WireGuard config and firewall ruleset export/import — all secured behind user authentication.
+
+---
 
 ## Features
 
-- **WireGuard status** – interface name, public key, listening port
-- **Peer status table** – shows each peer's endpoint, allowed IPs, last handshake and connected/disconnected state
-- **Throughput graphs** – per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds
-- **Ping latency graphs** – per-peer round-trip time chart, refreshed every 5 seconds
-- **Firewall rules page** – displays both `iptables` and `nftables` rulesets
-- **Firewall save / restore** – snapshot and reload active firewall rules server-side
-- **Firewall export / import** – download the live `iptables` or `nftables` ruleset as a file; upload and immediately apply a previously exported file
-- **WireGuard config export** – download all `*.conf` files from `/etc/wireguard/` (single file or a ZIP archive when multiple interfaces are present)
-- **WireGuard config import** – upload a `.conf` file to `/etc/wireguard/` directly from the dashboard
-- **User authentication** – login/logout with configurable credentials (via environment variables)
-- **User management** – create, delete, and change passwords for multiple user accounts via the web UI
+- 🔑 **User authentication** – Login/logout with configurable credentials; multi-user management via the web UI (create, delete, change passwords)
+- 📊 **WireGuard status** – Interface name, public key, listening port, and per-peer status table (endpoint, allowed IPs, last handshake, connected/disconnected state)
+- 📈 **Throughput graphs** – Per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds
+- 📡 **Ping latency graphs** – Per-peer round-trip time chart, refreshed every 5 seconds
+- 🔥 **Firewall rules page** – Displays both `iptables` and `nftables` rulesets
+- 💾 **Firewall save / restore** – Snapshot and reload active firewall rules server-side
+- ⬆️ **Firewall export / import** – Download the live ruleset as a file; upload and immediately apply a previously exported file (nftables import auto-rolls back on failure)
+- 📥 **WireGuard config export** – Download all `*.conf` files from `/etc/wireguard/` as a single file or ZIP archive
+- 📤 **WireGuard config import** – Upload a `.conf` file directly from the dashboard to `/etc/wireguard/`
+- 🏷 **Peer naming** – Assign friendly names to peers; names persisted to `peer_names.json`
 
-## Requirements
-
-- Python 3.10+
-- Linux with WireGuard tools (`wg`) installed (the UI gracefully degrades when `wg` is absent)
+---
 
 ## Quick Start
 
+### Prerequisites
+
+- Python 3.10+
+- Linux with WireGuard tools (`wg`) installed
+- Root or `sudo` access (required to read WireGuard status and manage firewall rules)
+
+### Clone & run (development)
+
 ```bash
-# 1. Install Python dependencies
+git clone https://github.com/masterlog80/wireguard-monitor-copilot.git
+cd wireguard-monitor-copilot
 
 python3 -m venv venv
 source venv/bin/activate
-
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# 2. (Optional) set credentials via environment variables
 export ADMIN_USERNAME=admin
 export ADMIN_PASSWORD=changeme   # change this!
 export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 
-# 3. Run the application
 python run.py
 ```
 
-Then open **http://\<your-server\>:5000** in a browser and log in.
+Open **http://\<your-server\>:5000** in a browser.
 
-## Configuration
+### Uninstall
 
-| Environment variable | Default      | Description                                      |
-|----------------------|--------------|--------------------------------------------------|
-| `ADMIN_USERNAME`     | `admin`      | Login username                                   |
-| `ADMIN_PASSWORD`     | `changeme`   | Login password – **change in production!**       |
-| `SECRET_KEY`         | random       | Flask secret key for session signing             |
-| `WG_INTERFACE`       | (auto)       | Force a specific WireGuard interface name        |
-| `MAX_HISTORY`        | `60`         | Number of 5-second data points kept per peer     |
-
-## Project Structure
-
-```
-├── run.py              # Entry point
-├── config.py           # Configuration class
-├── requirements.txt    # Python dependencies
-├── tests.py            # Unit tests
-└── app/
-    ├── __init__.py     # Flask application factory
-    ├── auth.py         # Login / logout blueprint
-    ├── routes.py       # Dashboard + API blueprints (including export/import endpoints)
-    ├── users.py        # User management blueprint
-    ├── wireguard.py    # WireGuard data collection, history & config export/import
-    ├── firewall.py     # iptables / nftables reader, save/restore & export/import
-    ├── peer_names.py   # Peer name persistence (read/write peer_names.json)
-    ├── templates/
-    │   ├── base.html
-    │   ├── login.html
-    │   ├── dashboard.html   # WireGuard config export/import card
-    │   ├── firewall.html    # Firewall rules + save/restore + export/import
-    │   └── users.html
-    └── static/
-        ├── favicon.svg
-        ├── css/style.css
-        ├── js/dashboard.js
-        └── vendor/        # Bootstrap 5, Bootstrap Icons, Chart.js (local)
+```bash
+sudo systemctl stop wireguard-monitor
+sudo systemctl disable wireguard-monitor
+sudo rm /etc/systemd/system/wireguard-monitor.service
+sudo systemctl daemon-reload
+sudo rm -rf /opt/wireguard-monitor
+sudo rm -rf /var/lib/wireguard-monitor
+sudo rm -f /etc/wireguard-monitor.env
 ```
 
-## Running as a Service (Auto-start on Boot)
+---
 
-A ready-to-use **systemd** unit file (`wireguard-monitor.service`) is included.
-Follow the steps below to install it so the monitor starts automatically every time the machine boots.
+## Screenshots
 
-### 1 – Copy the application to a permanent location
+### Login Page
+![Login Page](https://github.com/user-attachments/assets/395fbf9c-d054-4601-97cf-e885b5493417)
+
+### Dashboard
+![Dashboard](https://github.com/user-attachments/assets/5d78af9c-6891-4e8b-b583-9fb7cd21f7c7)
+
+### Firewall Rules
+![Firewall Rules](https://github.com/user-attachments/assets/b7baa1c6-ae57-4a28-823c-0c4606a95a05)
+
+### User Management
+![User Management](https://github.com/user-attachments/assets/16ebcefe-f74c-4bfa-8ad8-b1de67572ae8)
+
+### Create User
+![Create User](https://github.com/user-attachments/assets/c6206fae-789f-45bd-8417-7f788198837c)
+
+---
+
+## Running as a systemd Service (Auto-start on Boot)
+
+A ready-to-use `wireguard-monitor.service` unit file is included.
+
+### 1 — Copy to a permanent location
 
 ```bash
 sudo cp -r . /opt/wireguard-monitor
-```
-
-### 2 – Create the virtual environment on the server
-
-```bash
 cd /opt/wireguard-monitor
 python3 -m venv venv
 venv/bin/pip install --upgrade pip
 venv/bin/pip install -r requirements.txt
 ```
 
-### 3 – Create the data directory
-
-The service stores `users.json` and `peer_names.json` under `/var/lib/wireguard-monitor` so they survive updates.
+### 2 — Create the data directory
 
 ```bash
 sudo mkdir -p /var/lib/wireguard-monitor
 ```
 
-### 4 – Set credentials (strongly recommended)
-
-Create the environment file that the service reads at startup:
+### 3 — Set credentials
 
 ```bash
 sudo tee /etc/wireguard-monitor.env > /dev/null <<EOF
@@ -122,76 +111,69 @@ EOF
 sudo chmod 600 /etc/wireguard-monitor.env
 ```
 
-> **Note:** The commands above generate random credentials automatically.  
-> To use a custom password, replace the `$(python3 …)` part with your chosen value.
-
-### 5 – Install and enable the systemd unit
+### 4 — Install and enable the service
 
 ```bash
 sudo cp /opt/wireguard-monitor/wireguard-monitor.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now wireguard-monitor
-```
-
-The `--now` flag starts the service immediately without requiring a reboot.
-
-### 6 – Verify
-
-```bash
 sudo systemctl status wireguard-monitor
 ```
 
-You should see `Active: active (running)`.  
-Open **http://\<your-server\>:5000** in a browser to confirm the UI is available.
-
-### Common management commands
+### Common service management commands
 
 | Task | Command |
 |------|---------|
 | Check status | `sudo systemctl status wireguard-monitor` |
 | View live logs | `sudo journalctl -u wireguard-monitor -f` |
-| Stop the service | `sudo systemctl stop wireguard-monitor` |
-| Start the service | `sudo systemctl start wireguard-monitor` |
-| Restart the service | `sudo systemctl restart wireguard-monitor` |
+| Stop | `sudo systemctl stop wireguard-monitor` |
+| Restart | `sudo systemctl restart wireguard-monitor` |
 | Disable auto-start | `sudo systemctl disable wireguard-monitor` |
 
-## Uninstall
+---
 
-Follow these steps to completely remove the wireguard-monitor from your system.
+## Environment Variables
 
-### 1 – Stop and disable the systemd service
+| Variable | Default | Description |
+|---|---|---|
+| `ADMIN_USERNAME` | `admin` | Login username |
+| `ADMIN_PASSWORD` | `changeme` | Login password — **change in production!** |
+| `SECRET_KEY` | random | Flask secret key for session signing |
+| `WG_INTERFACE` | (auto) | Force a specific WireGuard interface name |
+| `MAX_HISTORY` | `60` | Number of 5-second data points kept per peer |
 
-```bash
-sudo systemctl stop wireguard-monitor
-sudo systemctl disable wireguard-monitor
+---
+
+## Project Structure
+
+```
+├── run.py
+├── config.py
+├── requirements.txt
+├── tests.py
+├── wireguard-monitor.service
+└── app/
+    ├── __init__.py
+    ├── auth.py
+    ├── routes.py
+    ├── users.py
+    ├── wireguard.py
+    ├── firewall.py
+    ├── peer_names.py
+    ├── templates/
+    │   ├── base.html
+    │   ├── login.html
+    │   ├── dashboard.html
+    │   ├── firewall.html
+    │   └── users.html
+    └── static/
+        ├── favicon.svg
+        ├── css/style.css
+        ├── js/dashboard.js
+        └── vendor/   # Bootstrap 5, Bootstrap Icons, Chart.js (local)
 ```
 
-### 2 – Remove the systemd unit file
-
-```bash
-sudo rm /etc/systemd/system/wireguard-monitor.service
-sudo systemctl daemon-reload
-```
-
-### 3 – Remove the application files
-
-```bash
-sudo rm -rf /opt/wireguard-monitor
-```
-
-### 4 – Remove the data directory
-
-> **Warning:** This deletes all user accounts and peer names stored by the application.
-
-```bash
-sudo rm -rf /var/lib/wireguard-monitor
-```
-
-### 5 – Remove the environment file
-
-```bash
-sudo rm -f /etc/wireguard-monitor.env
-```
+---
 
 ## Running Tests
 
@@ -200,36 +182,8 @@ pip install pytest
 python -m pytest tests.py -v
 ```
 
-## Screenshots
+---
 
-### Login Page
-![Login Page](https://github.com/user-attachments/assets/395fbf9c-d054-4601-97cf-e885b5493417)
+## License
 
-### Dashboard
-![Dashboard](https://github.com/user-attachments/assets/5d78af9c-6891-4e8b-b583-9fb7cd21f7c7)
-
-### WireGuard Config Export / Import
-The dashboard includes a **WireGuard Config Export / Import** card directly below the WireGuard Status section.
-
-- **Export Config** – downloads all `*.conf` files from `/etc/wireguard/` as a single file (one interface) or a ZIP archive (multiple interfaces).
-- **Import Config** – uploads a `.conf` file from your browser and writes it to `/etc/wireguard/` with mode `0600`. Restart the interface afterwards to apply the new configuration.
-
-![WireGuard Config Export / Import](https://github.com/user-attachments/assets/5d78af9c-6891-4e8b-b583-9fb7cd21f7c7)
-
-### Firewall Rules
-![Firewall Rules](https://github.com/user-attachments/assets/b7baa1c6-ae57-4a28-823c-0c4606a95a05)
-
-### Firewall Export / Import
-The **Save &amp; Restore Rules** panel on the Firewall page exposes two additional buttons per ruleset:
-
-- **Export** – downloads the live ruleset (`iptables-save` / `nft list ruleset`) directly to your browser as `iptables.rules` or `nftables.rules`.
-- **Import** – uploads a rules file from your browser and immediately applies it (`iptables-restore` / `nft -f`). nftables import performs an automatic rollback to the previous ruleset if the new rules fail to load.
-
-![Firewall Export / Import](https://github.com/user-attachments/assets/b7baa1c6-ae57-4a28-823c-0c4606a95a05)
-
-### User Management
-![User Management](https://github.com/user-attachments/assets/16ebcefe-f74c-4bfa-8ad8-b1de67572ae8)
-
-### Create User
-![Create User](https://github.com/user-attachments/assets/c6206fae-789f-45bd-8417-7f788198837c)
-
+MIT
