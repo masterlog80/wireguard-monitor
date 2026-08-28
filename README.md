@@ -30,8 +30,8 @@ A Flask-based web application that provides a real-time monitoring dashboard for
 ### Clone & run (development)
 
 ```bash
-git clone https://github.com/masterlog80/wireguard-monitor-copilot.git
-cd wireguard-monitor-copilot
+git clone https://github.com/masterlog80/wireguard-monitor.git
+cd wireguard-monitor
 
 python3 -m venv venv
 source venv/bin/activate
