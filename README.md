@@ -121,16 +121,35 @@ sudo rm -f /etc/wireguard-monitor.env
 
 A ready-to-use `wireguard-monitor.service` unit file is included.
 
-### 1 — Copy to a permanent location
+### 1 — Get the code into a permanent location
 
-Copy only the application files — **not** your local `venv/`, `.git/`, or any
-`users.json` / `peer_names.json` / `firewall_saves/` left over from testing
-the [Quick Start](#quick-start) above. Carrying those over is the single most
-common cause of "I set new credentials but they don't work" reports, since a
-leftover `users.json` would otherwise seed the service with old data.
+Pick **one** of the following. Both end with the app living at
+`/opt/wireguard-monitor`, owned by root, ready for the service to run.
+
+**Option A — fresh clone (recommended for most people):**
 
 ```bash
-sudo mkdir -p /opt/wireguard-monitor
+sudo git clone https://github.com/masterlog80/wireguard-monitor.git /opt/wireguard-monitor
+cd /opt/wireguard-monitor
+python3 -m venv venv
+venv/bin/pip install --upgrade pip
+venv/bin/pip install -r requirements.txt
+```
+
+This is the simplest and safest path — a brand-new clone can't possibly
+carry over a `venv/`, `users.json`, or anything else left over from testing
+the [Quick Start](#quick-start) earlier, which is the single most common
+cause of "I set new credentials but they don't work" reports.
+
+**Option B — copy from an existing checkout** (only if you've made local
+edits to that checkout you specifically want to deploy):
+
+```bash
+# Run this from your EXISTING checkout directory (e.g. ~/wireguard-monitor)
+# -- NOT from inside /opt/wireguard-monitor.
+cd ~/wireguard-monitor   # adjust to wherever you cloned/edited it
+pwd                      # sanity check: must NOT print /opt/wireguard-monitor
+
 sudo rsync -a --exclude='venv/' --exclude='.git/' --exclude='__pycache__/' \
   --exclude='*.pyc' --exclude='users.json' --exclude='peer_names.json' \
   --exclude='firewall_saves/' ./ /opt/wireguard-monitor/
@@ -143,6 +162,16 @@ python3 -m venv venv
 venv/bin/pip install --upgrade pip
 venv/bin/pip install -r requirements.txt
 ```
+
+> ⚠️ If your shell prompt already shows `/opt/wireguard-monitor` (e.g. from
+> a previous attempt) before running the `rsync`/`cp` line, you're about to
+> copy that directory into itself — `rsync` will fail with a `getcwd()`
+> error and leave `/opt/wireguard-monitor` empty (so the next step's
+> `pip install -r requirements.txt` then fails with *"No such file or
+> directory"*). `cd` out to your source checkout first, or just use Option A
+> instead. If you also see `(venv)` at the start of your prompt from an
+> earlier attempt, run `deactivate` first to avoid confusion about which
+> virtualenv is active.
 
 ### 2 — Create the data directory
 
