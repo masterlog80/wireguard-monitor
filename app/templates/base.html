@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="{{ csrf_token() }}" />
   <title>{% block title %}WireGuard Monitor{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" />
@@ -64,6 +65,12 @@
   {% block content %}{% endblock %}
 </div>
 
+<script>
+  // CSRF token for JS-issued fetch() calls to state-changing endpoints
+  // (POST/PUT/PATCH/DELETE). Read by the helper in app.js.
+  window.CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
+</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/chart.js/chart.umd.min.js') }}"></script>
 {% block scripts %}{% endblock %}

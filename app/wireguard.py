@@ -143,6 +143,13 @@ def get_peers() -> List[Dict[str, Any]]:
                 hs_ts = int(latest_hs)
             except ValueError:
                 hs_ts = 0
+            try:
+                rx_bytes = int(rx)
+                tx_bytes = int(tx)
+            except ValueError:
+                # Malformed transfer counters (unexpected `wg show dump` output) --
+                # skip this row rather than raising and failing the whole request.
+                continue
             age = int(time.time()) - hs_ts if hs_ts > 0 else None
             connected = (age is not None) and (age <= _HANDSHAKE_TIMEOUT)
             peers.append(
@@ -152,8 +159,8 @@ def get_peers() -> List[Dict[str, Any]]:
                     "endpoint": endpoint,
                     "allowed_ips": allowed_ips,
                     "latest_handshake": hs_ts,
-                    "rx_bytes": int(rx),
-                    "tx_bytes": int(tx),
+                    "rx_bytes": rx_bytes,
+                    "tx_bytes": tx_bytes,
                     "connected": connected,
                     "handshake_age_seconds": age,
                 }

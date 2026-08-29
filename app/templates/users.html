@@ -78,6 +78,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" action="{{ url_for('users.create_user') }}" id="createUserForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body">
           <div class="mb-3">
             <label for="newUsername" class="form-label">Username</label>
@@ -88,8 +89,9 @@
           <div class="mb-3">
             <label for="newPassword" class="form-label">Password</label>
             <input type="password" class="form-control bg-dark text-white border-secondary"
-                   id="newPassword" name="password"
+                   id="newPassword" name="password" minlength="{{ min_password_length }}"
                    placeholder="••••••••" required />
+            <div class="form-text">At least {{ min_password_length }} characters.</div>
           </div>
           <div class="mb-1">
             <label for="newPasswordConfirm" class="form-label">Confirm Password</label>
@@ -121,6 +123,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" id="changePwForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body">
           <p class="text-muted mb-3">
             Changing password for: <strong id="changePwUsername" class="text-white"></strong>
@@ -128,8 +131,9 @@
           <div class="mb-3">
             <label for="newPw" class="form-label">New Password</label>
             <input type="password" class="form-control bg-dark text-white border-secondary"
-                   id="newPw" name="new_password"
+                   id="newPw" name="new_password" minlength="{{ min_password_length }}"
                    placeholder="••••••••" required />
+            <div class="form-text">At least {{ min_password_length }} characters.</div>
           </div>
           <div class="mb-1">
             <label for="newPwConfirm" class="form-label">Confirm New Password</label>
@@ -161,6 +165,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" id="deleteUserForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body">
           <p>Are you sure you want to delete user
              <strong id="deleteUsername" class="text-danger"></strong>?

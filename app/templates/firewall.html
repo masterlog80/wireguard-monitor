@@ -169,8 +169,8 @@
       var info = data[type];
       if (info && info.exists) {
         el.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i>'
-          + 'Snapshot saved on <strong>' + formatTimestamp(info.saved_at) + '</strong>'
-          + ' (' + (info.size || 0) + ' bytes)';
+          + 'Snapshot saved on <strong>' + escapeHtml(formatTimestamp(info.saved_at)) + '</strong>'
+          + ' (' + escapeHtml(info.size || 0) + ' bytes)';
       } else {
         el.innerHTML = '<i class="bi bi-dash-circle text-secondary me-1"></i>No snapshot saved yet';
       }
@@ -194,7 +194,7 @@
     var formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
-    fetch('/api/firewall/import', {
+    fetchWithCsrf('/api/firewall/import', {
       method: 'POST',
       body: formData
     })
@@ -202,19 +202,19 @@
     .then(function(data) {
       if (data.ok) {
         showAlert('<i class="bi bi-check-circle-fill me-1"></i>'
-          + type + ' rules imported and applied successfully.', 'success');
+          + escapeHtml(type) + ' rules imported and applied successfully.', 'success');
       } else {
         showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>'
-          + 'Import failed: ' + (data.error || 'unknown error'), 'danger');
+          + 'Import failed: ' + escapeHtml(data.error || 'unknown error'), 'danger');
       }
     })
     .catch(function(err) {
-      showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>Request failed: ' + err, 'danger');
+      showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>Request failed: ' + escapeHtml(err), 'danger');
     });
   }
 
   function saveRules(type) {
-    fetch('/api/firewall/save', {
+    fetchWithCsrf('/api/firewall/save', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({type: type})
@@ -223,7 +223,7 @@
     .then(function(data) {
       if (data.ok) {
         showAlert('<i class="bi bi-check-circle-fill me-1"></i>'
-          + type + ' rules saved successfully.', 'success');
+          + escapeHtml(type) + ' rules saved successfully.', 'success');
         loadSnapshotInfo();
       } else {
         var errs = [];
@@ -233,17 +233,17 @@
           });
         }
         showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>'
-          + 'Save failed: ' + (errs.join('; ') || data.error || 'unknown error'), 'danger');
+          + 'Save failed: ' + escapeHtml(errs.join('; ') || data.error || 'unknown error'), 'danger');
       }
     })
     .catch(function(err) {
-      showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>Request failed: ' + err, 'danger');
+      showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>Request failed: ' + escapeHtml(err), 'danger');
     });
   }
 
   function restoreRules(type) {
     if (!confirm('Restore saved ' + type + ' rules? This will overwrite the current active rules.')) return;
-    fetch('/api/firewall/restore', {
+    fetchWithCsrf('/api/firewall/restore', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({type: type})
@@ -252,7 +252,7 @@
     .then(function(data) {
       if (data.ok) {
         showAlert('<i class="bi bi-check-circle-fill me-1"></i>'
-          + type + ' rules restored successfully.', 'success');
+          + escapeHtml(type) + ' rules restored successfully.', 'success');
       } else {
         var errs = [];
         if (data.results) {
@@ -261,11 +261,11 @@
           });
         }
         showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>'
-          + 'Restore failed: ' + (errs.join('; ') || data.error || 'unknown error'), 'danger');
+          + 'Restore failed: ' + escapeHtml(errs.join('; ') || data.error || 'unknown error'), 'danger');
       }
     })
     .catch(function(err) {
-      showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>Request failed: ' + err, 'danger');
+      showAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>Request failed: ' + escapeHtml(err), 'danger');
     });
   }
 

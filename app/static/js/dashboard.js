@@ -75,7 +75,7 @@ async function refreshStatus() {
 
     if (!data.available) {
       body.innerHTML = `<div class="alert alert-warning mb-0">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>${data.error || 'WireGuard unavailable'}
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>${escapeHtml(data.error) || 'WireGuard unavailable'}
       </div>`;
       badge.className = 'badge bg-danger ms-auto';
       badge.textContent = 'Down';
@@ -88,15 +88,15 @@ async function refreshStatus() {
     let html = '';
     for (const iface of data.interfaces) {
       if (iface.error) {
-        html += `<div class="alert alert-warning">${iface.name}: ${iface.error}</div>`;
+        html += `<div class="alert alert-warning">${escapeHtml(iface.name)}: ${escapeHtml(iface.error)}</div>`;
         continue;
       }
       html += `
         <div class="mb-3">
-          <h6 class="text-success mb-2"><i class="bi bi-hdd-network me-2"></i>${iface.name || iface.interface || '–'}</h6>
+          <h6 class="text-success mb-2"><i class="bi bi-hdd-network me-2"></i>${escapeHtml(iface.name || iface.interface) || '–'}</h6>
           <div class="row row-cols-auto g-2">
-            <div class="col"><span class="badge bg-secondary">Public Key</span> <code class="small">${shortKey(iface.public_key || '–')}</code></div>
-            <div class="col"><span class="badge bg-secondary">Port</span> <code class="small">${iface.listening_port || '–'}</code></div>
+            <div class="col"><span class="badge bg-secondary">Public Key</span> <code class="small">${escapeHtml(shortKey(iface.public_key)) || '–'}</code></div>
+            <div class="col"><span class="badge bg-secondary">Port</span> <code class="small">${escapeHtml(iface.listening_port) || '–'}</code></div>
           </div>
         </div>`;
     }
@@ -127,19 +127,19 @@ async function refreshPeers() {
         ? `${dot}<span class="text-success">Connected</span>`
         : `${dot}<span class="text-danger">Disconnected</span>`;
       const label = peerNames[p.public_key]
-        ? `<span title="${p.public_key}" class="fw-semibold">${peerNames[p.public_key]}</span>
-           <br><code class="text-muted small">${shortKey(p.public_key)}</code>`
-        : `<code title="${p.public_key}">${shortKey(p.public_key)}</code>`;
+        ? `<span title="${escapeHtml(p.public_key)}" class="fw-semibold">${escapeHtml(peerNames[p.public_key])}</span>
+           <br><code class="text-muted small">${escapeHtml(shortKey(p.public_key))}</code>`
+        : `<code title="${escapeHtml(p.public_key)}">${escapeHtml(shortKey(p.public_key))}</code>`;
       return `<tr>
-        <td><code>${p.interface}</code></td>
+        <td><code>${escapeHtml(p.interface)}</code></td>
         <td>
           ${label}
           <button class="btn btn-link btn-sm p-0 ms-1 text-muted rename-peer-btn"
-                  data-pubkey="${p.public_key}"
+                  data-pubkey="${escapeHtml(p.public_key)}"
                   title="Rename peer"><i class="bi bi-pencil"></i></button>
         </td>
-        <td><small>${p.endpoint || '–'}</small></td>
-        <td><small>${p.allowed_ips || '–'}</small></td>
+        <td><small>${escapeHtml(p.endpoint) || '–'}</small></td>
+        <td><small>${escapeHtml(p.allowed_ips) || '–'}</small></td>
         <td><small>${timeAgo(p.latest_handshake)}</small></td>
         <td>${status}</td>
         <td><small>${formatBytes(p.rx_bytes)}</small></td>
@@ -192,7 +192,7 @@ function getOrCreateCard(containerId, key, title) {
     card.innerHTML = `
       <div class="card h-100">
         <div class="card-header py-2">
-          <span class="peer-card-title text-info" title="${key}">${title}</span>
+          <span class="peer-card-title text-info" title="${escapeHtml(key)}">${escapeHtml(title)}</span>
         </div>
         <div class="card-body">
           <div class="chart-wrapper"><canvas></canvas></div>
@@ -362,7 +362,7 @@ async function savePeerName() {
   }
   input.classList.remove('is-invalid');
   try {
-    const resp = await fetch(`/api/peer_names/${encodeURIComponent(_renamePeerKey)}`, {
+    const resp = await fetchWithCsrf(`/api/peer_names/${encodeURIComponent(_renamePeerKey)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name })
@@ -383,7 +383,7 @@ async function savePeerName() {
 async function removePeerName() {
   if (!_renamePeerKey) return;
   try {
-    await fetch(`/api/peer_names/${encodeURIComponent(_renamePeerKey)}`, { method: 'DELETE' });
+    await fetchWithCsrf(`/api/peer_names/${encodeURIComponent(_renamePeerKey)}`, { method: 'DELETE' });
     bootstrap.Modal.getInstance(document.getElementById('renamePeerModal')).hide();
     await refreshAll();
   } catch (e) {
@@ -419,7 +419,7 @@ async function restartWireguard() {
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Restarting…';
 
   try {
-    const resp = await fetch('/api/restart', { method: 'POST' });
+    const resp = await fetchWithCsrf('/api/restart', { method: 'POST' });
     const data = await resp.json();
     if (data.ok) {
       btn.className = 'btn btn-sm btn-success ms-2';

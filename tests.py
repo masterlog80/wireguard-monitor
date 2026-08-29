@@ -15,6 +15,10 @@ os.environ.setdefault("ADMIN_USERNAME", "admin")
 os.environ.setdefault("ADMIN_PASSWORD", "testpass")
 os.environ["USERS_FILE"] = "/tmp/test_users_wireguard.json"
 os.environ["PEER_NAMES_FILE"] = "/tmp/test_peer_names_wireguard.json"
+# The test client doesn't attach CSRF tokens to its requests, so disable
+# CSRF enforcement for the test suite (dedicated tests below exercise it
+# explicitly with WTF_CSRF_ENABLED re-enabled on a scoped app instance).
+os.environ.setdefault("WTF_CSRF_ENABLED", "false")
 
 
 def _reset_user_store():
@@ -248,6 +252,33 @@ peer: PEERPUBKEY1234567890abcdefghijklmnop
         self.assertEqual(len(peers), 1)
         self.assertTrue(peers[0]["connected"])
         self.assertEqual(peers[0]["rx_bytes"], 102400)
+
+    def test_get_peers_skips_malformed_transfer_counters(self):
+        """A peer row with non-numeric rx/tx should be skipped, not raise."""
+        from app import wireguard
+
+        dump_output = (
+            "privatekey\tpubkey_iface\t0.0.0.0:51820\t0\n"
+            "pubkey_bad\t(none)\t10.0.0.1:12345\t10.0.0.2/32\t{ts}\tnot-a-number\t51200\t0\n"
+            "pubkey_good\t(none)\t10.0.0.3:12345\t10.0.0.4/32\t{ts}\t2048\t1024\t0\n".format(
+                ts=int(time.time()) - 30
+            )
+        )
+
+        def fake_run(cmd):
+            if "interfaces" in cmd:
+                return (0, "wg0\n", "")
+            if "dump" in cmd:
+                return (0, dump_output, "")
+            return (1, "", "")
+
+        with patch.object(wireguard, "_run", side_effect=fake_run):
+            peers = wireguard.get_peers()
+
+        # The malformed row is skipped; the well-formed one still parses.
+        self.assertEqual(len(peers), 1)
+        self.assertEqual(peers[0]["public_key"], "pubkey_good")
+        self.assertEqual(peers[0]["rx_bytes"], 2048)
 
     def test_throughput_history_calculation(self):
         from app import wireguard
@@ -639,7 +670,7 @@ class TestUserManagement(unittest.TestCase):
     def test_create_user_via_route(self):
         resp = self.client.post(
             "/users/create",
-            data={"username": "frank", "password": "pw1234", "confirm_password": "pw1234"},
+            data={"username": "frank", "password": "pw123456", "confirm_password": "pw123456"},
             follow_redirects=True,
         )
         self.assertEqual(resp.status_code, 200)
@@ -648,19 +679,27 @@ class TestUserManagement(unittest.TestCase):
     def test_create_user_mismatched_passwords(self):
         resp = self.client.post(
             "/users/create",
-            data={"username": "grace", "password": "abc", "confirm_password": "xyz"},
+            data={"username": "grace", "password": "abcdefgh", "confirm_password": "xyzxyzxy"},
             follow_redirects=True,
         )
         self.assertIn(b"Passwords do not match", resp.data)
 
+    def test_create_user_password_too_short(self):
+        resp = self.client.post(
+            "/users/create",
+            data={"username": "grace", "password": "short1", "confirm_password": "short1"},
+            follow_redirects=True,
+        )
+        self.assertIn(b"at least", resp.data)
+
     def test_create_duplicate_user(self):
         self.client.post(
             "/users/create",
-            data={"username": "heidi", "password": "p", "confirm_password": "p"},
+            data={"username": "heidi", "password": "password1", "confirm_password": "password1"},
         )
         resp = self.client.post(
             "/users/create",
-            data={"username": "heidi", "password": "p2", "confirm_password": "p2"},
+            data={"username": "heidi", "password": "password2", "confirm_password": "password2"},
             follow_redirects=True,
         )
         self.assertIn(b"already exists", resp.data)
@@ -668,15 +707,28 @@ class TestUserManagement(unittest.TestCase):
     def test_change_password_via_route(self):
         from app.auth import get_user_store
         store = get_user_store()
-        store.create_user("ivan", "oldpw")
+        store.create_user("ivan", "oldpassword")
         resp = self.client.post(
             "/users/ivan/change-password",
-            data={"new_password": "newpw", "confirm_password": "newpw"},
+            data={"new_password": "newpassword", "confirm_password": "newpassword"},
             follow_redirects=True,
         )
         self.assertIn(b"updated successfully", resp.data)
         user = store.get_user("ivan")
-        self.assertTrue(user.check_password("newpw"))
+        self.assertTrue(user.check_password("newpassword"))
+
+    def test_change_password_too_short(self):
+        from app.auth import get_user_store
+        store = get_user_store()
+        store.create_user("kim", "oldpassword")
+        resp = self.client.post(
+            "/users/kim/change-password",
+            data={"new_password": "short1", "confirm_password": "short1"},
+            follow_redirects=True,
+        )
+        self.assertIn(b"at least", resp.data)
+        user = store.get_user("kim")
+        self.assertTrue(user.check_password("oldpassword"))
 
     def test_delete_user_via_route(self):
         from app.auth import get_user_store
@@ -1022,6 +1074,23 @@ class TestFirewallExportImport(unittest.TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(resp.get_json()["ok"])
 
+    def test_firewall_import_rejects_oversized_upload(self):
+        """Uploads larger than MAX_CONTENT_LENGTH are rejected with 413."""
+        import io
+
+        original_limit = self.app.config["MAX_CONTENT_LENGTH"]
+        self.app.config["MAX_CONTENT_LENGTH"] = 1024  # 1 KiB for this test
+        try:
+            oversized = b"x" * 2048
+            resp = self.client.post(
+                "/api/firewall/import",
+                data={"type": "iptables", "file": (io.BytesIO(oversized), "big.rules")},
+                content_type="multipart/form-data",
+            )
+            self.assertEqual(resp.status_code, 413)
+        finally:
+            self.app.config["MAX_CONTENT_LENGTH"] = original_limit
+
     def test_firewall_import_invalid_type(self):
         import io
 
@@ -1249,6 +1318,112 @@ class TestWireguardExportImport(unittest.TestCase):
         )
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(resp.get_json()["ok"])
+
+
+class TestLoginRateLimit(unittest.TestCase):
+    """Failed login attempts from the same client should eventually be throttled."""
+
+    def setUp(self):
+        _reset_user_store()
+        from app import create_app
+        import app.auth as auth_mod
+
+        # Reset any state left over from other tests / a previous run.
+        auth_mod._login_attempts.clear()
+
+        self.auth_mod = auth_mod
+        self.app = create_app()
+        self.app.testing = True
+        self.app.config["LOGIN_RATE_LIMIT_ATTEMPTS"] = 3
+        self.client = self.app.test_client()
+
+    def tearDown(self):
+        _reset_user_store()
+        self.auth_mod._login_attempts.clear()
+
+    def test_lockout_after_repeated_failures(self):
+        for _ in range(3):
+            resp = self.client.post(
+                "/login",
+                data={"username": "admin", "password": "wrong"},
+            )
+            self.assertEqual(resp.status_code, 200)
+
+        # Fourth attempt (even with the correct password) should be blocked.
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+        )
+        self.assertEqual(resp.status_code, 429)
+
+    def test_successful_login_clears_attempts(self):
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "wrong"},
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+            follow_redirects=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"WireGuard", resp.data)
+
+
+class TestCsrfProtection(unittest.TestCase):
+    """CSRF protection should be enforced when WTF_CSRF_ENABLED is on."""
+
+    def setUp(self):
+        _reset_user_store()
+        from app import create_app
+        self.app = create_app()
+        self.app.testing = True
+        self.app.config["WTF_CSRF_ENABLED"] = True
+        self.client = self.app.test_client()
+
+    def tearDown(self):
+        _reset_user_store()
+
+    def test_login_without_token_rejected(self):
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_login_with_token_succeeds(self):
+        get_resp = self.client.get("/login")
+        # Extract the CSRF token embedded as a hidden input.
+        import re
+        match = re.search(rb'name="csrf_token" value="([^"]+)"', get_resp.data)
+        self.assertIsNotNone(match)
+        token = match.group(1).decode()
+
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass", "csrf_token": token},
+            follow_redirects=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"WireGuard", resp.data)
+
+    def test_api_restart_without_token_rejected(self):
+        self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+            headers={"X-CSRFToken": self._get_token()},
+        )
+        resp = self.client.post("/api/restart")
+        self.assertEqual(resp.status_code, 400)
+
+    def _get_token(self):
+        import re
+        get_resp = self.client.get("/login")
+        match = re.search(rb'name="csrf_token" value="([^"]+)"', get_resp.data)
+        return match.group(1).decode()
+
 
 if __name__ == "__main__":
     unittest.main()
