@@ -28,44 +28,6 @@ A Flask-based web application that provides a real-time monitoring dashboard for
 - Linux with WireGuard tools (`wg`) installed — the UI gracefully degrades when `wg` is absent
 - Root or `sudo` access (required to read WireGuard status and manage firewall rules)
 
-### Clone & run (development)
-
-```bash
-git clone https://github.com/masterlog80/wireguard-monitor.git
-cd wireguard-monitor
-
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-
-export ADMIN_USERNAME=admin
-export ADMIN_PASSWORD=changeme   # change this!
-export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-
-python run.py
-```
-
-Open **http://\<your-server\>:5000** in a browser and log in with the `ADMIN_USERNAME`/`ADMIN_PASSWORD` you exported above.
-
-> ⚠️ **These credentials only take effect the first time the app starts** — specifically, the first time it needs to create `users.json` (or whatever `USERS_FILE` points to). If that file already exists from an earlier run, `ADMIN_USERNAME`/`ADMIN_PASSWORD` are silently ignored and the *original* credentials still apply. If you can't log in, check the terminal/log output on startup — it always prints one of:
-> - `created initial admin account '<user>'` — a fresh account was just seeded from your env vars, or
-> - `ADMIN_USERNAME/ADMIN_PASSWORD are ignored while this file exists` — an existing account was loaded instead, and your env vars had no effect.
->
-> See **[Resetting the admin password](#resetting-the-admin-password)** below to fix this.
-
-### Uninstall
-
-```bash
-sudo systemctl stop wireguard-monitor
-sudo systemctl disable wireguard-monitor
-sudo rm /etc/systemd/system/wireguard-monitor.service
-sudo systemctl daemon-reload
-sudo rm -rf /opt/wireguard-monitor
-sudo rm -rf /var/lib/wireguard-monitor
-sudo rm -f /etc/wireguard-monitor.env
-```
-
 ## Running as a systemd Service (Auto-start on Boot)
 
 A ready-to-use `wireguard-monitor.service` unit file is included.
@@ -75,7 +37,7 @@ A ready-to-use `wireguard-monitor.service` unit file is included.
 Pick **one** of the following. Both end with the app living at
 `/opt/wireguard-monitor`, owned by root, ready for the service to run.
 
-**Option A — fresh clone (recommended for most people):**
+**Fresh clone (recommended for most people):**
 
 ```bash
 sudo git clone https://github.com/masterlog80/wireguard-monitor.git /opt/wireguard-monitor
@@ -84,43 +46,6 @@ python3 -m venv venv
 venv/bin/pip install --upgrade pip
 venv/bin/pip install -r requirements.txt
 ```
-
-This is the simplest and safest path — a brand-new clone can't possibly
-carry over a `venv/`, `users.json`, or anything else left over from testing
-the [Quick Start](#quick-start) earlier, which is the single most common
-cause of "I set new credentials but they don't work" reports.
-
-**Option B — copy from an existing checkout** (only if you've made local
-edits to that checkout you specifically want to deploy):
-
-```bash
-# Run this from your EXISTING checkout directory (e.g. ~/wireguard-monitor)
-# -- NOT from inside /opt/wireguard-monitor.
-cd ~/wireguard-monitor   # adjust to wherever you cloned/edited it
-pwd                      # sanity check: must NOT print /opt/wireguard-monitor
-
-sudo rsync -a --exclude='venv/' --exclude='.git/' --exclude='__pycache__/' \
-  --exclude='*.pyc' --exclude='users.json' --exclude='peer_names.json' \
-  --exclude='firewall_saves/' ./ /opt/wireguard-monitor/
-# No rsync? `sudo apt install rsync` (Debian/Ubuntu) or substitute a plain
-# `sudo cp -r . /opt/wireguard-monitor` and manually delete the excluded
-# paths afterward.
-
-cd /opt/wireguard-monitor
-python3 -m venv venv
-venv/bin/pip install --upgrade pip
-venv/bin/pip install -r requirements.txt
-```
-
-> ⚠️ If your shell prompt already shows `/opt/wireguard-monitor` (e.g. from
-> a previous attempt) before running the `rsync`/`cp` line, you're about to
-> copy that directory into itself — `rsync` will fail with a `getcwd()`
-> error and leave `/opt/wireguard-monitor` empty (so the next step's
-> `pip install -r requirements.txt` then fails with *"No such file or
-> directory"*). `cd` out to your source checkout first, or just use Option A
-> instead. If you also see `(venv)` at the start of your prompt from an
-> earlier attempt, run `deactivate` first to avoid confusion about which
-> virtualenv is active.
 
 ### 2 — Create the data directory
 
@@ -176,6 +101,44 @@ You should see `created initial admin account 'admin'`. If instead you see
 `ADMIN_USERNAME/ADMIN_PASSWORD are ignored while this file exists`, a
 `users.json` from an earlier attempt is already in place — see the next
 section.
+
+### Uninstall
+
+```bash
+sudo systemctl stop wireguard-monitor
+sudo systemctl disable wireguard-monitor
+sudo rm /etc/systemd/system/wireguard-monitor.service
+sudo systemctl daemon-reload
+sudo rm -rf /opt/wireguard-monitor
+sudo rm -rf /var/lib/wireguard-monitor
+sudo rm -f /etc/wireguard-monitor.env
+```
+
+### Clone & run (development)
+
+```bash
+git clone https://github.com/masterlog80/wireguard-monitor.git
+cd wireguard-monitor
+
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+export ADMIN_USERNAME=admin
+export ADMIN_PASSWORD=changeme   # change this!
+export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+
+python run.py
+```
+
+Open **http://\<your-server\>:5000** in a browser and log in with the `ADMIN_USERNAME`/`ADMIN_PASSWORD` you exported above.
+
+> ⚠️ **These credentials only take effect the first time the app starts** — specifically, the first time it needs to create `users.json` (or whatever `USERS_FILE` points to). If that file already exists from an earlier run, `ADMIN_USERNAME`/`ADMIN_PASSWORD` are silently ignored and the *original* credentials still apply. If you can't log in, check the terminal/log output on startup — it always prints one of:
+> - `created initial admin account '<user>'` — a fresh account was just seeded from your env vars, or
+> - `ADMIN_USERNAME/ADMIN_PASSWORD are ignored while this file exists` — an existing account was loaded instead, and your env vars had no effect.
+>
+> See **[Resetting the admin password](#resetting-the-admin-password)** below to fix this.
 
 ---
 
