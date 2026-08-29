@@ -91,6 +91,22 @@ class TestAppFactory(unittest.TestCase):
         # Should land on dashboard
         self.assertIn(b"WireGuard", resp.data)
 
+    def test_navbar_shows_username_and_theme_toggle(self):
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+            follow_redirects=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"admin", resp.data)
+        self.assertIn(b'id="theme-toggle-btn"', resp.data)
+
+    def test_login_page_has_no_theme_toggle(self):
+        # The toggle only makes sense once a user (and their preference) exist
+        # in the authenticated shell; the standalone login page omits it.
+        resp = self.client.get("/login")
+        self.assertNotIn(b'id="theme-toggle-btn"', resp.data)
+
     def _login(self):
         self.client.post(
             "/login",

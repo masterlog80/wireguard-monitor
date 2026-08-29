@@ -9,7 +9,7 @@
   </button>
 </div>
 
-<div class="card bg-dark border-secondary">
+<div class="card border-secondary-subtle">
   <div class="card-header border-secondary">
     <span class="fw-semibold">Accounts</span>
     <span class="badge bg-secondary ms-2">{{ usernames | length }}</span>
@@ -17,7 +17,7 @@
   <div class="card-body p-0">
     {% if usernames %}
     <div class="table-responsive">
-      <table class="table table-dark table-hover align-middle mb-0">
+      <table class="table table-hover align-middle mb-0">
         <thead class="table-secondary">
           <tr>
             <th scope="col"><i class="bi bi-person me-1"></i>Username</th>
@@ -70,32 +70,32 @@
 {# ── Create User Modal ─────────────────────────────────────────────────── #}
 <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content bg-dark border-secondary">
+    <div class="modal-content border-secondary-subtle">
       <div class="modal-header border-secondary">
         <h5 class="modal-title" id="createUserModalLabel">
           <i class="bi bi-person-plus-fill text-success me-2"></i>Create New User
         </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" action="{{ url_for('users.create_user') }}" id="createUserForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body">
           <div class="mb-3">
             <label for="newUsername" class="form-label">Username</label>
-            <input type="text" class="form-control bg-dark text-white border-secondary"
+            <input type="text" class="form-control"
                    id="newUsername" name="username"
                    placeholder="Enter username" required autofocus />
           </div>
           <div class="mb-3">
             <label for="newPassword" class="form-label">Password</label>
-            <input type="password" class="form-control bg-dark text-white border-secondary"
+            <input type="password" class="form-control"
                    id="newPassword" name="password" minlength="{{ min_password_length }}"
                    placeholder="••••••••" required />
             <div class="form-text">At least {{ min_password_length }} characters.</div>
           </div>
           <div class="mb-1">
             <label for="newPasswordConfirm" class="form-label">Confirm Password</label>
-            <input type="password" class="form-control bg-dark text-white border-secondary"
+            <input type="password" class="form-control"
                    id="newPasswordConfirm" name="confirm_password"
                    placeholder="••••••••" required />
           </div>
@@ -115,29 +115,29 @@
 {# ── Change Password Modal ─────────────────────────────────────────────── #}
 <div class="modal fade" id="changePwModal" tabindex="-1" aria-labelledby="changePwModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content bg-dark border-secondary">
+    <div class="modal-content border-secondary-subtle">
       <div class="modal-header border-secondary">
         <h5 class="modal-title" id="changePwModalLabel">
           <i class="bi bi-key-fill text-warning me-2"></i>Change Password
         </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" id="changePwForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body">
           <p class="text-muted mb-3">
-            Changing password for: <strong id="changePwUsername" class="text-white"></strong>
+            Changing password for: <strong id="changePwUsername"></strong>
           </p>
           <div class="mb-3">
             <label for="newPw" class="form-label">New Password</label>
-            <input type="password" class="form-control bg-dark text-white border-secondary"
+            <input type="password" class="form-control"
                    id="newPw" name="new_password" minlength="{{ min_password_length }}"
                    placeholder="••••••••" required />
             <div class="form-text">At least {{ min_password_length }} characters.</div>
           </div>
           <div class="mb-1">
             <label for="newPwConfirm" class="form-label">Confirm New Password</label>
-            <input type="password" class="form-control bg-dark text-white border-secondary"
+            <input type="password" class="form-control"
                    id="newPwConfirm" name="confirm_password"
                    placeholder="••••••••" required />
           </div>
@@ -157,12 +157,12 @@
 {# ── Delete User Modal ─────────────────────────────────────────────────── #}
 <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content bg-dark border-secondary">
+    <div class="modal-content border-secondary-subtle">
       <div class="modal-header border-secondary">
         <h5 class="modal-title" id="deleteUserModalLabel">
           <i class="bi bi-trash-fill text-danger me-2"></i>Delete User
         </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" id="deleteUserForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
