@@ -121,6 +121,19 @@ class UserStore:
                 }
             }
             self._save()
+            print(
+                f"[wireguard-monitor] No user store found at '{self.filepath}' -- "
+                f"created initial admin account '{Config.ADMIN_USERNAME}' from "
+                f"ADMIN_USERNAME/ADMIN_PASSWORD."
+            )
+        else:
+            print(
+                f"[wireguard-monitor] Loaded {len(self._users)} user account(s) from "
+                f"'{self.filepath}'. ADMIN_USERNAME/ADMIN_PASSWORD are only used to "
+                f"seed the very first account and are ignored while this file exists -- "
+                f"see 'Resetting the admin password' in the README if you meant to "
+                f"change credentials."
+            )
 
     def _save(self) -> None:
         """Write current user data to *filepath* (caller must hold ``_lock``)."""
