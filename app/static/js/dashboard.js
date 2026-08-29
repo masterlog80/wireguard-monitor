@@ -48,6 +48,7 @@ function timeAgo(epochSeconds) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 let peerNames = {};  // public_key -> display name
+let peerConnected = {};  // public_key -> bool, populated by refreshPeers()
 
 function peerLabel(publicKey) {
   return peerNames[publicKey] || shortKey(publicKey);
@@ -120,6 +121,8 @@ async function refreshPeers() {
       tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No peers found.</td></tr>';
       return;
     }
+
+    peerConnected = Object.fromEntries(peers.map(p => [p.public_key, p.connected]));
 
     tbody.innerHTML = peers.map(p => {
       const dot = `<span class="status-dot ${p.connected ? 'connected' : 'disconnected'}"></span>`;
@@ -215,8 +218,9 @@ function getOrCreateCard(containerId, key, title) {
     card.setAttribute('data-peer-key', key);
     card.innerHTML = `
       <div class="card h-100">
-        <div class="card-header py-2">
+        <div class="card-header py-2 d-flex align-items-center gap-2">
           <span class="peer-card-title text-info" title="${escapeHtml(key)}">${escapeHtml(title)}</span>
+          <span class="badge bg-secondary peer-offline-badge d-none" title="No recent WireGuard handshake -- not actively probed">Offline</span>
         </div>
         <div class="card-body">
           <div class="chart-wrapper"><canvas></canvas></div>
@@ -231,7 +235,14 @@ function getOrCreateCard(containerId, key, title) {
     }
     row.appendChild(card);
   }
+  updateChartCardOfflineBadge(card, key);
   return card.querySelector('canvas');
+}
+
+function updateChartCardOfflineBadge(cardEl, key) {
+  const badge = cardEl.querySelector('.peer-offline-badge');
+  if (!badge) return;
+  badge.classList.toggle('d-none', peerConnected[key] !== false);
 }
 
 function updateChartCardTitle(containerId, key, title) {
@@ -239,6 +250,7 @@ function updateChartCardTitle(containerId, key, title) {
   if (cardEl) {
     const titleEl = cardEl.querySelector('.peer-card-title');
     if (titleEl) titleEl.textContent = title;
+    updateChartCardOfflineBadge(cardEl, key);
   }
 }
 

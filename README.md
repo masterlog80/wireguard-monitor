@@ -9,7 +9,7 @@ A Flask-based web application that provides a real-time monitoring dashboard for
 - 🔑 **User authentication** – Login/logout with configurable credentials; multi-user management via the web UI (create, delete, change passwords)
 - 📊 **WireGuard status** – Interface name, public key, listening port, and per-peer status table (endpoint, allowed IPs, last handshake, connected/disconnected state)
 - 📈 **Throughput graphs** – Per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds
-- 📡 **Ping latency graphs** – Per-peer round-trip time chart, refreshed every 5 seconds
+- 📡 **Ping latency graphs** – Per-peer round-trip time chart, refreshed every 5 seconds. Only actively probes peers with a recent WireGuard handshake — a Disconnected peer is shown as "Offline" on its charts instead of being pinged, so its Throughput/Ping graphs won't show phantom activity from the app's own probe traffic
 - 🔥 **Firewall rules page** – Displays both `iptables` and `nftables` rulesets
 - 💾 **Firewall save / restore** – Snapshot and reload active firewall rules server-side
 - ⬆️ **Firewall export / import** – Download the live ruleset as a file; upload and immediately apply a previously exported file (nftables import auto-rolls back on failure)

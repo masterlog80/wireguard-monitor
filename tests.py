@@ -311,6 +311,40 @@ peer: PEERPUBKEY1234567890abcdefghijklmnop
         self.assertEqual(len(hist[key]["rx_bps"]), 1)
         self.assertAlmostEqual(hist[key]["rx_bps"][0], 1000.0, delta=10)
 
+    def test_ping_history_skips_disconnected_peers(self):
+        """Disconnected peers must not be actively pinged.
+
+        Regression test: pinging an already-disconnected peer sends real
+        traffic through the WireGuard interface toward that peer's IP,
+        which can itself show up as phantom throughput on a peer the
+        dashboard is simultaneously reporting as Disconnected -- see
+        README/issue discussion. A (timestamp, None) gap should still be
+        recorded so the ping chart's timeline stays continuous.
+        """
+        from app import wireguard
+
+        wireguard._ping_history.clear()
+        connected_peer = {
+            "public_key": "connected_pub",
+            "allowed_ips": "10.0.0.2/32",
+            "connected": True,
+        }
+        disconnected_peer = {
+            "public_key": "disconnected_pub",
+            "allowed_ips": "10.0.0.4/32",
+            "connected": False,
+        }
+
+        with patch.object(wireguard, "ping_peer", return_value=12.5) as mock_ping:
+            wireguard._update_ping_history([connected_peer, disconnected_peer])
+
+        # Only the connected peer's IP should ever have been pinged.
+        mock_ping.assert_called_once_with("10.0.0.2")
+
+        hist = wireguard.get_ping_history()
+        self.assertEqual(hist["connected_pub"]["latencies"], [12.5])
+        self.assertEqual(hist["disconnected_pub"]["latencies"], [None])
+
 
 class TestFirewall(unittest.TestCase):
     def test_parse_iptables_output(self):

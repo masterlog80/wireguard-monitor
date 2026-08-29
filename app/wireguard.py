@@ -242,16 +242,28 @@ _ping_lock = threading.Lock()
 
 
 def _update_ping_history(peers: List[Dict[str, Any]]) -> None:
-    """Measure ping for each peer's first allowed IP and store the result."""
+    """Measure ping for each *connected* peer's first allowed IP.
+
+    Peers with no recent handshake are skipped rather than pinged: we
+    already know from the WireGuard handshake itself that they're
+    unreachable (a peer coming back online is detected via a fresh
+    handshake, not via this app's own ping), so actively probing them
+    only wastes cycles -- and, since the probe traffic is routed through
+    the WireGuard interface toward the peer's allowed IP, it can even
+    show up as phantom "throughput" for a peer the dashboard is
+    simultaneously reporting as Disconnected. A (timestamp, None) gap is
+    still recorded so the ping chart's timeline stays continuous.
+    """
     ts = time.time()
     for p in peers:
         key = p["public_key"]
-        allowed = p.get("allowed_ips", "")
-        # Take first IP (strip /prefix)
-        ip_candidate = allowed.split(",")[0].strip().split("/")[0]
-        if not ip_candidate or ip_candidate == "(none)":
-            continue
-        latency = ping_peer(ip_candidate)
+        latency = None
+        if p.get("connected"):
+            allowed = p.get("allowed_ips", "")
+            # Take first IP (strip /prefix)
+            ip_candidate = allowed.split(",")[0].strip().split("/")[0]
+            if ip_candidate and ip_candidate != "(none)":
+                latency = ping_peer(ip_candidate)
         with _ping_lock:
             if key not in _ping_history:
                 _ping_history[key] = deque(maxlen=Config.MAX_HISTORY)
