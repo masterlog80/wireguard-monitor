@@ -92,11 +92,20 @@
 
 <!-- ======================== Throughput Graphs ======================== -->
 <div class="row g-3 mb-4" id="throughput-section">
-  <div class="col-12">
-    <h5 class="text-muted">
+  <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h5 class="text-muted mb-0">
       <i class="bi bi-graph-up-arrow me-2"></i>Throughput per Peer
       <small class="fs-6 text-secondary">(refreshes every 5 s)</small>
     </h5>
+    <div class="d-flex align-items-center gap-2">
+      <label for="chart-columns-select" class="form-label mb-0 small text-muted">Columns</label>
+      <select id="chart-columns-select" class="form-select form-select-sm w-auto"
+              title="Number of columns for the Throughput and Ping graphs below">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+    </div>
   </div>
   <div class="col-12" id="throughput-charts-container">
     <p class="text-muted">Waiting for data…</p>

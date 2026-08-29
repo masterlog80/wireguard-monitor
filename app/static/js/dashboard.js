@@ -160,6 +160,39 @@ async function refreshPeers() {
 
 const _throughputCharts = {};  // key -> Chart instance
 const _pingCharts = {};        // key -> Chart instance
+const CHART_HEIGHT_BY_COLUMNS = { 2: 300, 3: 220, 4: 170 };
+const CHART_GRID_CONTAINER_IDS = ['throughput-charts-container', 'ping-charts-container'];
+
+let chartColumns = parseInt(localStorage.getItem('chartColumns'), 10);
+if (![2, 3, 4].includes(chartColumns)) chartColumns = 3;
+
+function rowClassForColumns(n) {
+  // Always 1 column on phones, 2 on small tablets, and the user's chosen
+  // count from the medium breakpoint up -- so picking "4" on a desktop
+  // never forces unusably narrow cards on a phone.
+  return `row row-cols-1 row-cols-sm-2 row-cols-md-${n} g-3`;
+}
+
+function applyColumnCount(n) {
+  chartColumns = n;
+  localStorage.setItem('chartColumns', String(n));
+  const heightPx = CHART_HEIGHT_BY_COLUMNS[n] || 220;
+
+  for (const containerId of CHART_GRID_CONTAINER_IDS) {
+    const container = document.getElementById(containerId);
+    if (!container) continue;
+    container.style.setProperty('--chart-h', heightPx + 'px');
+    const row = container.querySelector('.row');
+    if (row) row.className = rowClassForColumns(n);
+  }
+
+  // Chart.js is responsive and redraws on its own via ResizeObserver, but
+  // resize() makes the size change apply immediately rather than waiting
+  // for the next tick.
+  for (const chart of [...Object.values(_throughputCharts), ...Object.values(_pingCharts)]) {
+    chart.resize();
+  }
+}
 
 function chartThemeColors() {
   const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
@@ -214,7 +247,7 @@ function getOrCreateCard(containerId, key, title) {
   let card = container.querySelector(`[data-peer-key="${CSS.escape(key)}"]`);
   if (!card) {
     card = document.createElement('div');
-    card.className = 'col-md-6 col-lg-4 mb-3';
+    card.className = 'col mb-3';
     card.setAttribute('data-peer-key', key);
     card.innerHTML = `
       <div class="card h-100">
@@ -230,7 +263,8 @@ function getOrCreateCard(containerId, key, title) {
     let row = container.querySelector('.row');
     if (!row) {
       row = document.createElement('div');
-      row.className = 'row';
+      row.className = rowClassForColumns(chartColumns);
+      container.style.setProperty('--chart-h', (CHART_HEIGHT_BY_COLUMNS[chartColumns] || 220) + 'px');
       container.appendChild(row);
     }
     row.appendChild(card);
@@ -498,3 +532,9 @@ refreshAll();
 setInterval(refreshAll, 5000);
 
 document.getElementById('restart-btn').addEventListener('click', restartWireguard);
+
+const columnsSelect = document.getElementById('chart-columns-select');
+columnsSelect.value = String(chartColumns);
+columnsSelect.addEventListener('change', (e) => {
+  applyColumnCount(parseInt(e.target.value, 10));
+});
