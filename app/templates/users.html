@@ -78,6 +78,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" action="{{ url_for('users.create_user') }}" id="createUserForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body">
           <div class="mb-3">
             <label for="newUsername" class="form-label">Username</label>
@@ -121,6 +122,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" id="changePwForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body">
           <p class="text-muted mb-3">
             Changing password for: <strong id="changePwUsername" class="text-white"></strong>
@@ -161,6 +163,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" id="deleteUserForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body">
           <p>Are you sure you want to delete user
              <strong id="deleteUsername" class="text-danger"></strong>?

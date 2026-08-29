@@ -1,6 +1,15 @@
 import os
 import secrets
 
+
+def _bool_env(name: str, default: bool) -> bool:
+    """Parse a boolean environment variable ('1', 'true', 'yes' -> True)."""
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    return val.strip().lower() in ("1", "true", "yes", "on")
+
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", secrets.token_hex(32))
     # Default admin credentials (override via env vars in production)
@@ -16,3 +25,27 @@ class Config:
     PEER_NAMES_FILE = os.environ.get("PEER_NAMES_FILE", "peer_names.json")
     # Directory where saved firewall rule snapshots are stored
     FIREWALL_SAVE_DIR = os.environ.get("FIREWALL_SAVE_DIR", "firewall_saves")
+
+    # --- Session / cookie hardening ---
+    # Cookies are never readable from JS and default to SameSite=Lax, which
+    # blocks the cookie being sent on cross-site POSTs. Set SESSION_COOKIE_SECURE=true
+    # once the app is served over HTTPS (e.g. behind a reverse proxy).
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
+    SESSION_COOKIE_SECURE = _bool_env("SESSION_COOKIE_SECURE", False)
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
+    REMEMBER_COOKIE_SECURE = _bool_env("SESSION_COOKIE_SECURE", False)
+
+    # --- CSRF protection (Flask-WTF) ---
+    # Kept on by default; tests disable it explicitly so the existing
+    # test client requests (which don't carry a CSRF token) keep working.
+    WTF_CSRF_ENABLED = _bool_env("WTF_CSRF_ENABLED", True)
+
+    # --- Login rate limiting ---
+    # Max failed login attempts allowed from a single IP within the window
+    # before further attempts are rejected with 429.
+    LOGIN_RATE_LIMIT_ATTEMPTS = int(os.environ.get("LOGIN_RATE_LIMIT_ATTEMPTS", 10))
+    LOGIN_RATE_LIMIT_WINDOW_SECONDS = int(
+        os.environ.get("LOGIN_RATE_LIMIT_WINDOW_SECONDS", 300)
+    )

@@ -362,7 +362,7 @@ async function savePeerName() {
   }
   input.classList.remove('is-invalid');
   try {
-    const resp = await fetch(`/api/peer_names/${encodeURIComponent(_renamePeerKey)}`, {
+    const resp = await fetchWithCsrf(`/api/peer_names/${encodeURIComponent(_renamePeerKey)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name })
@@ -383,7 +383,7 @@ async function savePeerName() {
 async function removePeerName() {
   if (!_renamePeerKey) return;
   try {
-    await fetch(`/api/peer_names/${encodeURIComponent(_renamePeerKey)}`, { method: 'DELETE' });
+    await fetchWithCsrf(`/api/peer_names/${encodeURIComponent(_renamePeerKey)}`, { method: 'DELETE' });
     bootstrap.Modal.getInstance(document.getElementById('renamePeerModal')).hide();
     await refreshAll();
   } catch (e) {
@@ -419,7 +419,7 @@ async function restartWireguard() {
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Restarting…';
 
   try {
-    const resp = await fetch('/api/restart', { method: 'POST' });
+    const resp = await fetchWithCsrf('/api/restart', { method: 'POST' });
     const data = await resp.json();
     if (data.ok) {
       btn.className = 'btn btn-sm btn-success ms-2';

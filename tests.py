@@ -15,6 +15,10 @@ os.environ.setdefault("ADMIN_USERNAME", "admin")
 os.environ.setdefault("ADMIN_PASSWORD", "testpass")
 os.environ["USERS_FILE"] = "/tmp/test_users_wireguard.json"
 os.environ["PEER_NAMES_FILE"] = "/tmp/test_peer_names_wireguard.json"
+# The test client doesn't attach CSRF tokens to its requests, so disable
+# CSRF enforcement for the test suite (dedicated tests below exercise it
+# explicitly with WTF_CSRF_ENABLED re-enabled on a scoped app instance).
+os.environ.setdefault("WTF_CSRF_ENABLED", "false")
 
 
 def _reset_user_store():
@@ -1249,6 +1253,112 @@ class TestWireguardExportImport(unittest.TestCase):
         )
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(resp.get_json()["ok"])
+
+
+class TestLoginRateLimit(unittest.TestCase):
+    """Failed login attempts from the same client should eventually be throttled."""
+
+    def setUp(self):
+        _reset_user_store()
+        from app import create_app
+        import app.auth as auth_mod
+
+        # Reset any state left over from other tests / a previous run.
+        auth_mod._login_attempts.clear()
+
+        self.auth_mod = auth_mod
+        self.app = create_app()
+        self.app.testing = True
+        self.app.config["LOGIN_RATE_LIMIT_ATTEMPTS"] = 3
+        self.client = self.app.test_client()
+
+    def tearDown(self):
+        _reset_user_store()
+        self.auth_mod._login_attempts.clear()
+
+    def test_lockout_after_repeated_failures(self):
+        for _ in range(3):
+            resp = self.client.post(
+                "/login",
+                data={"username": "admin", "password": "wrong"},
+            )
+            self.assertEqual(resp.status_code, 200)
+
+        # Fourth attempt (even with the correct password) should be blocked.
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+        )
+        self.assertEqual(resp.status_code, 429)
+
+    def test_successful_login_clears_attempts(self):
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "wrong"},
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+            follow_redirects=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"WireGuard", resp.data)
+
+
+class TestCsrfProtection(unittest.TestCase):
+    """CSRF protection should be enforced when WTF_CSRF_ENABLED is on."""
+
+    def setUp(self):
+        _reset_user_store()
+        from app import create_app
+        self.app = create_app()
+        self.app.testing = True
+        self.app.config["WTF_CSRF_ENABLED"] = True
+        self.client = self.app.test_client()
+
+    def tearDown(self):
+        _reset_user_store()
+
+    def test_login_without_token_rejected(self):
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_login_with_token_succeeds(self):
+        get_resp = self.client.get("/login")
+        # Extract the CSRF token embedded as a hidden input.
+        import re
+        match = re.search(rb'name="csrf_token" value="([^"]+)"', get_resp.data)
+        self.assertIsNotNone(match)
+        token = match.group(1).decode()
+
+        resp = self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass", "csrf_token": token},
+            follow_redirects=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"WireGuard", resp.data)
+
+    def test_api_restart_without_token_rejected(self):
+        self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+            headers={"X-CSRFToken": self._get_token()},
+        )
+        resp = self.client.post("/api/restart")
+        self.assertEqual(resp.status_code, 400)
+
+    def _get_token(self):
+        import re
+        get_resp = self.client.get("/login")
+        match = re.search(rb'name="csrf_token" value="([^"]+)"', get_resp.data)
+        return match.group(1).decode()
+
 
 if __name__ == "__main__":
     unittest.main()

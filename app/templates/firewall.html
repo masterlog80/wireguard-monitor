@@ -194,7 +194,7 @@
     var formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
-    fetch('/api/firewall/import', {
+    fetchWithCsrf('/api/firewall/import', {
       method: 'POST',
       body: formData
     })
@@ -214,7 +214,7 @@
   }
 
   function saveRules(type) {
-    fetch('/api/firewall/save', {
+    fetchWithCsrf('/api/firewall/save', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({type: type})
@@ -243,7 +243,7 @@
 
   function restoreRules(type) {
     if (!confirm('Restore saved ' + type + ' rules? This will overwrite the current active rules.')) return;
-    fetch('/api/firewall/restore', {
+    fetchWithCsrf('/api/firewall/restore', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({type: type})

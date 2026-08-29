@@ -89,6 +89,10 @@ sudo rm -f /etc/wireguard-monitor.env
 | `SECRET_KEY` | random | Flask secret key for session signing |
 | `WG_INTERFACE` | (auto) | Force a specific WireGuard interface name |
 | `MAX_HISTORY` | `60` | Number of 5-second data points kept per peer |
+| `SESSION_COOKIE_SECURE` | `false` | Set `true` once served over HTTPS to mark cookies `Secure` |
+| `WTF_CSRF_ENABLED` | `true` | CSRF protection for all state-changing requests — leave enabled in production |
+| `LOGIN_RATE_LIMIT_ATTEMPTS` | `10` | Failed login attempts allowed per client IP before a temporary lockout |
+| `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Sliding window (seconds) used for the login lockout above |
 
 ---
 

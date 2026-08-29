@@ -4,14 +4,63 @@ from __future__ import annotations
 import json
 import os
 import threading
+import time
+from collections import defaultdict, deque
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, current_app, render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from config import Config
 
 auth_bp = Blueprint("auth", __name__)
+
+
+# ---------------------------------------------------------------------------
+# Login rate limiting – simple in-memory sliding window keyed by client IP.
+#
+# This is intentionally lightweight (no extra dependency, no external store)
+# to match the rest of the app's single-process, in-memory state (see
+# UserStore / PeerNameStore). It resets on restart, which is an acceptable
+# trade-off for a homelab-scale deployment behind a single process.
+#
+# The attempt/window thresholds are read from `current_app.config` (populated
+# from Config at app-creation time) rather than from the Config class
+# directly, so per-app overrides (e.g. in tests) are respected correctly.
+# ---------------------------------------------------------------------------
+
+_login_attempts: dict[str, deque] = defaultdict(deque)
+_login_attempts_lock = threading.Lock()
+
+
+def _client_ip() -> str:
+    return request.remote_addr or "unknown"
+
+
+def _is_rate_limited(key: str) -> bool:
+    """Return True if *key* has exceeded the allowed failed attempts."""
+    now = time.time()
+    window = current_app.config.get(
+        "LOGIN_RATE_LIMIT_WINDOW_SECONDS", Config.LOGIN_RATE_LIMIT_WINDOW_SECONDS
+    )
+    limit = current_app.config.get(
+        "LOGIN_RATE_LIMIT_ATTEMPTS", Config.LOGIN_RATE_LIMIT_ATTEMPTS
+    )
+    with _login_attempts_lock:
+        attempts = _login_attempts[key]
+        while attempts and now - attempts[0] > window:
+            attempts.popleft()
+        return len(attempts) >= limit
+
+
+def _record_failed_attempt(key: str) -> None:
+    with _login_attempts_lock:
+        _login_attempts[key].append(time.time())
+
+
+def _clear_attempts(key: str) -> None:
+    with _login_attempts_lock:
+        _login_attempts.pop(key, None)
 
 
 # ---------------------------------------------------------------------------
@@ -156,14 +205,21 @@ def load_user(user_id: str) -> User | None:
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        client_key = _client_ip()
+        if _is_rate_limited(client_key):
+            flash("Too many failed login attempts. Please try again later.", "danger")
+            return render_template("login.html"), 429
+
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         store = get_user_store()
         user = store.get_user(username)
         if user and user.check_password(password):
+            _clear_attempts(client_key)
             login_user(user, remember=True)
             next_page = request.args.get("next") or url_for("main.dashboard")
             return redirect(next_page)
+        _record_failed_attempt(client_key)
         flash("Invalid username or password.", "danger")
     return render_template("login.html")
 

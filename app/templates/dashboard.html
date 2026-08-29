@@ -171,7 +171,7 @@
         if (!confirm('Import "' + file.name + '" to /etc/wireguard/?\n\nRestart the WireGuard interface after importing to apply the new configuration.')) return;
         var formData = new FormData();
         formData.append('file', file);
-        fetch('/api/wireguard/import', { method: 'POST', body: formData })
+        fetchWithCsrf('/api/wireguard/import', { method: 'POST', body: formData })
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.ok) {
