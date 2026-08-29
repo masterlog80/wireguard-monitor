@@ -158,25 +158,49 @@ async function refreshPeers() {
 const _throughputCharts = {};  // key -> Chart instance
 const _pingCharts = {};        // key -> Chart instance
 
-const CHART_DEFAULTS = {
-  animation: false,
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { labels: { color: '#c9d1d9', boxWidth: 14 } }
-  },
-  scales: {
-    x: {
-      ticks: { color: '#8b949e', maxTicksLimit: 8, maxRotation: 0 },
-      grid: { color: '#21262d' }
+function chartThemeColors() {
+  const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
+  return isLight
+    ? { text: '#495057', grid: '#dee2e6' }
+    : { text: '#8b949e', grid: '#21262d' };
+}
+
+function getChartDefaults() {
+  const { text, grid } = chartThemeColors();
+  return {
+    animation: false,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: text, boxWidth: 14 } }
     },
-    y: {
-      ticks: { color: '#8b949e' },
-      grid: { color: '#21262d' },
-      beginAtZero: true
+    scales: {
+      x: {
+        ticks: { color: text, maxTicksLimit: 8, maxRotation: 0 },
+        grid: { color: grid }
+      },
+      y: {
+        ticks: { color: text },
+        grid: { color: grid },
+        beginAtZero: true
+      }
     }
+  };
+}
+
+// Re-theme any already-rendered charts when the light/dark toggle fires
+// (see base.html), instead of waiting for the next data refresh.
+document.addEventListener('themechange', () => {
+  const { text, grid } = chartThemeColors();
+  for (const chart of [...Object.values(_throughputCharts), ...Object.values(_pingCharts)]) {
+    chart.options.plugins.legend.labels.color = text;
+    chart.options.scales.x.ticks.color = text;
+    chart.options.scales.x.grid.color = grid;
+    chart.options.scales.y.ticks.color = text;
+    chart.options.scales.y.grid.color = grid;
+    chart.update();
   }
-};
+});
 
 function getOrCreateCard(containerId, key, title) {
   const container = document.getElementById(containerId);
@@ -261,13 +285,13 @@ async function refreshThroughput() {
             ]
           },
           options: {
-            ...CHART_DEFAULTS,
+            ...getChartDefaults(),
             scales: {
-              ...CHART_DEFAULTS.scales,
+              ...getChartDefaults().scales,
               y: {
-                ...CHART_DEFAULTS.scales.y,
+                ...getChartDefaults().scales.y,
                 ticks: {
-                  color: '#8b949e',
+                  color: chartThemeColors().text,
                   callback: v => formatBps(v)
                 }
               }
@@ -315,13 +339,13 @@ async function refreshPing() {
             ]
           },
           options: {
-            ...CHART_DEFAULTS,
+            ...getChartDefaults(),
             scales: {
-              ...CHART_DEFAULTS.scales,
+              ...getChartDefaults().scales,
               y: {
-                ...CHART_DEFAULTS.scales.y,
+                ...getChartDefaults().scales.y,
                 ticks: {
-                  color: '#8b949e',
+                  color: chartThemeColors().text,
                   callback: v => v + ' ms'
                 }
               }

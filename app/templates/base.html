@@ -1,18 +1,27 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="csrf-token" content="{{ csrf_token() }}" />
   <title>{% block title %}WireGuard Monitor{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}" />
+  <script>
+    // Applied before the stylesheets paint so there's no flash of the wrong
+    // theme. Defaults to dark (the app's original look) when nothing is
+    // stored yet. Kept in sync with the toggle button in the navbar below.
+    (function () {
+      var stored = localStorage.getItem('theme');
+      document.documentElement.setAttribute('data-bs-theme', stored === 'light' ? 'light' : 'dark');
+    })();
+  </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/font/bootstrap-icons.min.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-secondary">
+<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom border-secondary-subtle">
   <div class="container-fluid">
     <a class="navbar-brand fw-bold" href="{{ url_for('main.dashboard') }}">
       <i class="bi bi-shield-lock-fill text-success me-2"></i>WireGuard Monitor
@@ -41,7 +50,20 @@
           </a>
         </li>
       </ul>
-      <ul class="navbar-nav ms-auto">
+      <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+        <li class="nav-item">
+          <button type="button" id="theme-toggle-btn" class="btn btn-sm btn-outline-secondary border-0"
+                  title="Toggle light/dark mode" aria-label="Toggle light/dark mode">
+            <i class="bi" id="theme-toggle-icon"></i>
+          </button>
+        </li>
+        {% if current_user.is_authenticated %}
+        <li class="nav-item">
+          <span class="nav-link disabled d-flex align-items-center gap-1">
+            <i class="bi bi-person-circle"></i>{{ current_user.username }}
+          </span>
+        </li>
+        {% endif %}
         <li class="nav-item">
           <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
             <i class="bi bi-box-arrow-right me-1"></i>Logout
@@ -73,6 +95,30 @@
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/chart.js/chart.umd.min.js') }}"></script>
+<script>
+  // ── Light/Dark mode toggle ────────────────────────────────────────────
+  (function () {
+    var icon = document.getElementById('theme-toggle-icon');
+    var btn = document.getElementById('theme-toggle-btn');
+
+    function applyIcon(theme) {
+      icon.className = theme === 'light' ? 'bi bi-moon-stars-fill' : 'bi bi-sun-fill';
+      btn.title = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+    }
+
+    applyIcon(document.documentElement.getAttribute('data-bs-theme'));
+
+    btn.addEventListener('click', function () {
+      var current = document.documentElement.getAttribute('data-bs-theme');
+      var next = current === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-bs-theme', next);
+      localStorage.setItem('theme', next);
+      applyIcon(next);
+      // Let any page-specific JS (e.g. Chart.js instances) restyle itself.
+      document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }));
+    });
+  })();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

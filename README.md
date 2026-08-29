@@ -16,6 +16,7 @@ A Flask-based web application that provides a real-time monitoring dashboard for
 - 📥 **WireGuard config export** – Download all `*.conf` files from `/etc/wireguard/` as a single file or ZIP archive when multiple interfaces are present
 - 📤 **WireGuard config import** – Upload a `.conf` file directly from the dashboard to `/etc/wireguard/` with mode `0600`
 - 🏷 **Peer naming** – Assign friendly names to peers; names persisted across restarts
+- 🌗 **Light/Dark mode** – Toggle in the navbar (top right, next to your username); choice is remembered per-browser
 
 ---
 
