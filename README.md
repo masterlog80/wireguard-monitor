@@ -47,19 +47,10 @@ venv/bin/pip install --upgrade pip
 venv/bin/pip install -r requirements.txt
 ```
 
-### 2 — Create the data directory
+### 2 — Create the data directory and et credentials
 
 ```bash
 sudo mkdir -p /var/lib/wireguard-monitor
-```
-
-This is where the service persists `users.json`, `peer_names.json`, and
-firewall snapshots (see `Environment=` in the unit file) — kept separate from
-`/opt/wireguard-monitor` so re-deploying the app code never touches your data.
-
-### 3 — Set credentials
-
-```bash
 sudo tee /etc/wireguard-monitor.env > /dev/null <<EOF
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=changeme
@@ -67,6 +58,11 @@ SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 EOF
 sudo chmod 600 /etc/wireguard-monitor.env
 ```
+
+Folder `/var/lib/wireguard-monitor` is where the service persists `users.json`,
+`peer_names.json`, and firewall snapshots (see `Environment=` in the unit file).
+Kept separate from `/opt/wireguard-monitor` so re-deploying the app code never 
+touches your data.
 
 **Edit `ADMIN_PASSWORD` above before continuing** — either replace `changeme`
 with your own password, or generate a random one and make sure to note it
@@ -82,7 +78,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(16))"
 > `ADMIN_PASSWORD` here and it still doesn't work, that file already exists —
 > see [Resetting the admin password](#resetting-the-admin-password) below.
 
-### 4 — Install and enable the service
+### 3 — Install and enable the service
 
 ```bash
 sudo cp /opt/wireguard-monitor/wireguard-monitor.service /etc/systemd/system/
