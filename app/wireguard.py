@@ -174,14 +174,23 @@ def get_peers() -> List[Dict[str, Any]]:
 
 
 def _update_history(peers: List[Dict[str, Any]]) -> None:
-    """Record current RX/TX for each peer into the rolling history."""
+    """Record current RX/TX for each peer into the rolling history.
+
+    Each point also records the peer's connected state at that moment, so
+    get_throughput_history() can suppress the computed rate across a span
+    where the peer had no live handshake. WireGuard can still report a slow
+    trickle of "sent" bytes for a peer with no recent handshake (traffic
+    attempted toward it from elsewhere on the network/host, counted before
+    delivery is ever confirmed) -- real numbers, but not meaningful as this
+    peer's throughput, so the chart shouldn't imply an active connection.
+    """
     ts = time.time()
     with _history_lock:
         for p in peers:
             key = p["public_key"]
             if key not in _peer_history:
                 _peer_history[key] = deque(maxlen=Config.MAX_HISTORY)
-            _peer_history[key].append((ts, p["rx_bytes"], p["tx_bytes"]))
+            _peer_history[key].append((ts, p["rx_bytes"], p["tx_bytes"], p["connected"]))
 
 
 def get_throughput_history() -> Dict[str, Any]:
@@ -201,16 +210,23 @@ def get_throughput_history() -> Dict[str, Any]:
             rx_bps = []
             tx_bps = []
             for i in range(1, len(points)):
-                t0, rx0, tx0 = points[i - 1]
-                t1, rx1, tx1 = points[i]
+                t0, rx0, tx0, connected0 = points[i - 1]
+                t1, rx1, tx1, connected1 = points[i]
                 dt = t1 - t0
                 if dt <= 0:
                     continue
                 labels.append(
                     time.strftime("%H:%M:%S", time.localtime(t1))
                 )
-                rx_bps.append(round((rx1 - rx0) / dt, 2))
-                tx_bps.append(round((tx1 - tx0) / dt, 2))
+                if connected0 and connected1:
+                    rx_bps.append(round((rx1 - rx0) / dt, 2))
+                    tx_bps.append(round((tx1 - tx0) / dt, 2))
+                else:
+                    # No live handshake for at least one end of this
+                    # interval -- don't attribute whatever raw counter
+                    # movement occurred to this peer's throughput.
+                    rx_bps.append(0.0)
+                    tx_bps.append(0.0)
             result[key] = {"labels": labels, "rx_bps": rx_bps, "tx_bps": tx_bps}
         return result
 

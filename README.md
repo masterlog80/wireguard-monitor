@@ -8,8 +8,8 @@ A Flask-based web application that provides a real-time monitoring dashboard for
 
 - 🔑 **User authentication** – Login/logout with configurable credentials; multi-user management via the web UI (create, delete, change passwords)
 - 📊 **WireGuard status** – Interface name, public key, listening port, and per-peer status table (endpoint, allowed IPs, last handshake, connected/disconnected state)
-- 📈 **Throughput graphs** – Per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds; grid layout is adjustable (2/3/4 columns, remembered per-browser)
-- 📡 **Ping latency graphs** – Per-peer round-trip time chart, refreshed every 5 seconds. Only actively probes peers with a recent WireGuard handshake — a Disconnected peer is shown as "Offline" on its charts instead of being pinged, so its Throughput/Ping graphs won't show phantom activity from the app's own probe traffic
+- 📈 **Throughput graphs** – Per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds. Rate is only computed across intervals where the peer had a live WireGuard handshake — WireGuard can report a slow trickle of raw "sent" bytes toward a peer with no recent handshake (traffic attempted from elsewhere on the network, counted before delivery is ever confirmed), and that isn't meaningful as this peer's throughput, so a Disconnected peer's chart shows flat 0 regardless of what the raw counters do. Grid layout is adjustable (2/3/4 columns, remembered per-browser)
+- 📡 **Ping latency graphs** – Per-peer round-trip time chart, refreshed every 5 seconds. Only actively probes peers with a recent WireGuard handshake — a Disconnected peer is shown as "Offline" on its charts instead of being pinged, since WireGuard's own handshake (not this app's ping) is what detects a peer coming back online
 - 🔥 **Firewall rules page** – Displays both `iptables` and `nftables` rulesets
 - 💾 **Firewall save / restore** – Snapshot and reload active firewall rules server-side
 - ⬆️ **Firewall export / import** – Download the live ruleset as a file; upload and immediately apply a previously exported file (nftables import auto-rolls back on failure)
