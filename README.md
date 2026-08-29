@@ -93,6 +93,18 @@ sudo rm -f /etc/wireguard-monitor.env
 | `WTF_CSRF_ENABLED` | `true` | CSRF protection for all state-changing requests — leave enabled in production |
 | `LOGIN_RATE_LIMIT_ATTEMPTS` | `10` | Failed login attempts allowed per client IP before a temporary lockout |
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Sliding window (seconds) used for the login lockout above |
+| `MAX_CONTENT_LENGTH` | `16777216` (16 MiB) | Maximum size of any request body (JSON payloads, config/rules uploads) |
+| `MIN_PASSWORD_LENGTH` | `8` | Minimum password length enforced when creating a user or changing a password |
+
+---
+
+## Security Notes
+
+- **Every account has equal, full-admin privileges.** There is no read-only or restricted role — anyone who can log in can manage users, view/change firewall rules, and restart WireGuard. Only create accounts for people you trust with root-adjacent access to the host.
+- **All state-changing requests are CSRF-protected** (Flask-WTF). Templates and the dashboard/firewall JavaScript automatically attach the required token — no action needed unless you're scripting against the API, in which case first `GET /login` (or any page) to obtain a token from the `csrf-token` meta tag or a form's hidden field, then send it back via the `X-CSRFToken` header or `csrf_token` form field.
+- **Login attempts are rate-limited** per client IP (see `LOGIN_RATE_LIMIT_*` above) to slow down password guessing. The limiter is in-memory and resets on restart — fine for a single-process homelab deployment, not a substitute for a proper WAF/fail2ban if you expose this beyond your LAN.
+- **Peer display names and other user-supplied strings are escaped client-side before being inserted into the page**, so a malicious or compromised account can't inject script via a peer rename, an uploaded filename, or an error message reflected back from a failed firewall-rule import.
+- Set `SESSION_COOKIE_SECURE=true` once you're serving this behind HTTPS (e.g. a reverse proxy with a TLS certificate) so the session cookie is never sent in the clear.
 
 ---
 

@@ -1,12 +1,17 @@
 """User management blueprint (create, change password, delete)."""
 from __future__ import annotations
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, current_app, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 
+from config import Config
 from .auth import get_user_store
 
 users_bp = Blueprint("users", __name__, url_prefix="/users")
+
+
+def _min_password_length() -> int:
+    return current_app.config.get("MIN_PASSWORD_LENGTH", Config.MIN_PASSWORD_LENGTH)
 
 
 @users_bp.route("/")
@@ -15,7 +20,9 @@ def list_users():
     """Display the Users management page."""
     store = get_user_store()
     usernames = store.list_users()
-    return render_template("users.html", usernames=usernames)
+    return render_template(
+        "users.html", usernames=usernames, min_password_length=_min_password_length()
+    )
 
 
 @users_bp.route("/create", methods=["POST"])
@@ -30,6 +37,8 @@ def create_user():
         flash("Username is required.", "danger")
     elif not password:
         flash("Password is required.", "danger")
+    elif len(password) < _min_password_length():
+        flash(f"Password must be at least {_min_password_length()} characters.", "danger")
     elif password != confirm:
         flash("Passwords do not match.", "danger")
     else:
@@ -51,6 +60,8 @@ def change_password(username: str):
 
     if not new_password:
         flash("New password is required.", "danger")
+    elif len(new_password) < _min_password_length():
+        flash(f"Password must be at least {_min_password_length()} characters.", "danger")
     elif new_password != confirm:
         flash("Passwords do not match.", "danger")
     else:

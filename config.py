@@ -49,3 +49,14 @@ class Config:
     LOGIN_RATE_LIMIT_WINDOW_SECONDS = int(
         os.environ.get("LOGIN_RATE_LIMIT_WINDOW_SECONDS", 300)
     )
+
+    # --- Request size limit ---
+    # Caps the size of any incoming request body (JSON payloads and file
+    # uploads: WireGuard/firewall config import). Prevents a logged-in user
+    # (or a leaked session) from exhausting memory with an oversized upload.
+    # Default 16 MiB comfortably covers WireGuard/iptables/nftables configs.
+    MAX_CONTENT_LENGTH = int(os.environ.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
+
+    # --- Password policy ---
+    # Minimum length enforced when creating a user or changing a password.
+    MIN_PASSWORD_LENGTH = int(os.environ.get("MIN_PASSWORD_LENGTH", 8))

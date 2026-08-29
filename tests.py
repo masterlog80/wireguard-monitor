@@ -253,6 +253,33 @@ peer: PEERPUBKEY1234567890abcdefghijklmnop
         self.assertTrue(peers[0]["connected"])
         self.assertEqual(peers[0]["rx_bytes"], 102400)
 
+    def test_get_peers_skips_malformed_transfer_counters(self):
+        """A peer row with non-numeric rx/tx should be skipped, not raise."""
+        from app import wireguard
+
+        dump_output = (
+            "privatekey\tpubkey_iface\t0.0.0.0:51820\t0\n"
+            "pubkey_bad\t(none)\t10.0.0.1:12345\t10.0.0.2/32\t{ts}\tnot-a-number\t51200\t0\n"
+            "pubkey_good\t(none)\t10.0.0.3:12345\t10.0.0.4/32\t{ts}\t2048\t1024\t0\n".format(
+                ts=int(time.time()) - 30
+            )
+        )
+
+        def fake_run(cmd):
+            if "interfaces" in cmd:
+                return (0, "wg0\n", "")
+            if "dump" in cmd:
+                return (0, dump_output, "")
+            return (1, "", "")
+
+        with patch.object(wireguard, "_run", side_effect=fake_run):
+            peers = wireguard.get_peers()
+
+        # The malformed row is skipped; the well-formed one still parses.
+        self.assertEqual(len(peers), 1)
+        self.assertEqual(peers[0]["public_key"], "pubkey_good")
+        self.assertEqual(peers[0]["rx_bytes"], 2048)
+
     def test_throughput_history_calculation(self):
         from app import wireguard
 
@@ -643,7 +670,7 @@ class TestUserManagement(unittest.TestCase):
     def test_create_user_via_route(self):
         resp = self.client.post(
             "/users/create",
-            data={"username": "frank", "password": "pw1234", "confirm_password": "pw1234"},
+            data={"username": "frank", "password": "pw123456", "confirm_password": "pw123456"},
             follow_redirects=True,
         )
         self.assertEqual(resp.status_code, 200)
@@ -652,19 +679,27 @@ class TestUserManagement(unittest.TestCase):
     def test_create_user_mismatched_passwords(self):
         resp = self.client.post(
             "/users/create",
-            data={"username": "grace", "password": "abc", "confirm_password": "xyz"},
+            data={"username": "grace", "password": "abcdefgh", "confirm_password": "xyzxyzxy"},
             follow_redirects=True,
         )
         self.assertIn(b"Passwords do not match", resp.data)
 
+    def test_create_user_password_too_short(self):
+        resp = self.client.post(
+            "/users/create",
+            data={"username": "grace", "password": "short1", "confirm_password": "short1"},
+            follow_redirects=True,
+        )
+        self.assertIn(b"at least", resp.data)
+
     def test_create_duplicate_user(self):
         self.client.post(
             "/users/create",
-            data={"username": "heidi", "password": "p", "confirm_password": "p"},
+            data={"username": "heidi", "password": "password1", "confirm_password": "password1"},
         )
         resp = self.client.post(
             "/users/create",
-            data={"username": "heidi", "password": "p2", "confirm_password": "p2"},
+            data={"username": "heidi", "password": "password2", "confirm_password": "password2"},
             follow_redirects=True,
         )
         self.assertIn(b"already exists", resp.data)
@@ -672,15 +707,28 @@ class TestUserManagement(unittest.TestCase):
     def test_change_password_via_route(self):
         from app.auth import get_user_store
         store = get_user_store()
-        store.create_user("ivan", "oldpw")
+        store.create_user("ivan", "oldpassword")
         resp = self.client.post(
             "/users/ivan/change-password",
-            data={"new_password": "newpw", "confirm_password": "newpw"},
+            data={"new_password": "newpassword", "confirm_password": "newpassword"},
             follow_redirects=True,
         )
         self.assertIn(b"updated successfully", resp.data)
         user = store.get_user("ivan")
-        self.assertTrue(user.check_password("newpw"))
+        self.assertTrue(user.check_password("newpassword"))
+
+    def test_change_password_too_short(self):
+        from app.auth import get_user_store
+        store = get_user_store()
+        store.create_user("kim", "oldpassword")
+        resp = self.client.post(
+            "/users/kim/change-password",
+            data={"new_password": "short1", "confirm_password": "short1"},
+            follow_redirects=True,
+        )
+        self.assertIn(b"at least", resp.data)
+        user = store.get_user("kim")
+        self.assertTrue(user.check_password("oldpassword"))
 
     def test_delete_user_via_route(self):
         from app.auth import get_user_store
@@ -1025,6 +1073,23 @@ class TestFirewallExportImport(unittest.TestCase):
         )
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(resp.get_json()["ok"])
+
+    def test_firewall_import_rejects_oversized_upload(self):
+        """Uploads larger than MAX_CONTENT_LENGTH are rejected with 413."""
+        import io
+
+        original_limit = self.app.config["MAX_CONTENT_LENGTH"]
+        self.app.config["MAX_CONTENT_LENGTH"] = 1024  # 1 KiB for this test
+        try:
+            oversized = b"x" * 2048
+            resp = self.client.post(
+                "/api/firewall/import",
+                data={"type": "iptables", "file": (io.BytesIO(oversized), "big.rules")},
+                content_type="multipart/form-data",
+            )
+            self.assertEqual(resp.status_code, 413)
+        finally:
+            self.app.config["MAX_CONTENT_LENGTH"] = original_limit
 
     def test_firewall_import_invalid_type(self):
         import io

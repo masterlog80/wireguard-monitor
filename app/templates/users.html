@@ -89,8 +89,9 @@
           <div class="mb-3">
             <label for="newPassword" class="form-label">Password</label>
             <input type="password" class="form-control bg-dark text-white border-secondary"
-                   id="newPassword" name="password"
+                   id="newPassword" name="password" minlength="{{ min_password_length }}"
                    placeholder="••••••••" required />
+            <div class="form-text">At least {{ min_password_length }} characters.</div>
           </div>
           <div class="mb-1">
             <label for="newPasswordConfirm" class="form-label">Confirm Password</label>
@@ -130,8 +131,9 @@
           <div class="mb-3">
             <label for="newPw" class="form-label">New Password</label>
             <input type="password" class="form-control bg-dark text-white border-secondary"
-                   id="newPw" name="new_password"
+                   id="newPw" name="new_password" minlength="{{ min_password_length }}"
                    placeholder="••••••••" required />
+            <div class="form-text">At least {{ min_password_length }} characters.</div>
           </div>
           <div class="mb-1">
             <label for="newPwConfirm" class="form-label">Confirm New Password</label>

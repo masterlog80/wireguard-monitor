@@ -176,15 +176,15 @@
           .then(function (data) {
             if (data.ok) {
               showWgAlert('<i class="bi bi-check-circle-fill me-1"></i>'
-                + 'Config imported successfully to <code>' + (data.path || '/etc/wireguard/') + '</code>.'
+                + 'Config imported successfully to <code>' + escapeHtml(data.path || '/etc/wireguard/') + '</code>.'
                 + ' Restart the interface to apply.', 'success');
             } else {
               showWgAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>'
-                + 'Import failed: ' + (data.error || 'unknown error'), 'danger');
+                + 'Import failed: ' + escapeHtml(data.error || 'unknown error'), 'danger');
             }
           })
           .catch(function (err) {
-            showWgAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>Request failed: ' + err, 'danger');
+            showWgAlert('<i class="bi bi-exclamation-triangle-fill me-1"></i>Request failed: ' + escapeHtml(err), 'danger');
           });
       });
     }
