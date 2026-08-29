@@ -303,13 +303,60 @@ peer: PEERPUBKEY1234567890abcdefghijklmnop
         now = time.time()
         with wireguard._history_lock:
             wireguard._peer_history[key] = __import__("collections").deque(maxlen=60)
-            wireguard._peer_history[key].append((now - 5, 0, 0))
-            wireguard._peer_history[key].append((now, 5000, 2500))
+            wireguard._peer_history[key].append((now - 5, 0, 0, True))
+            wireguard._peer_history[key].append((now, 5000, 2500, True))
 
         hist = wireguard.get_throughput_history()
         self.assertIn(key, hist)
         self.assertEqual(len(hist[key]["rx_bps"]), 1)
         self.assertAlmostEqual(hist[key]["rx_bps"][0], 1000.0, delta=10)
+
+    def test_throughput_suppressed_while_disconnected(self):
+        """A byte-counter delta spanning a disconnected endpoint should be
+        reported as zero, not a real rate.
+
+        WireGuard can report a slow trickle of "sent" bytes for a peer with
+        no recent handshake -- see the reported case of a peer showing
+        continuous TX with a 3-day-stale handshake, confirmed via `wg show
+        wg0 transfer` directly (bypassing the app). That's real WireGuard
+        data, but not meaningful as this peer's throughput, so it shouldn't
+        render as an active-looking chart line.
+        """
+        from app import wireguard
+
+        key = "disconnected_peer"
+        now = time.time()
+        with wireguard._history_lock:
+            wireguard._peer_history[key] = __import__("collections").deque(maxlen=60)
+            # Raw counters genuinely increasing (like the real-world case),
+            # but the peer is disconnected at both ends of this interval.
+            wireguard._peer_history[key].append((now - 5, 1000, 2000, False))
+            wireguard._peer_history[key].append((now, 1200, 2050, False))
+
+        hist = wireguard.get_throughput_history()
+        self.assertEqual(hist[key]["rx_bps"], [0.0])
+        self.assertEqual(hist[key]["tx_bps"], [0.0])
+
+    def test_throughput_shown_across_reconnection(self):
+        """A genuine reconnection (disconnected -> connected) should still
+        report zero for that transitional interval, since it spans a period
+        with no live handshake -- only fully-connected intervals get a real
+        rate."""
+        from app import wireguard
+
+        key = "reconnecting_peer"
+        now = time.time()
+        with wireguard._history_lock:
+            wireguard._peer_history[key] = __import__("collections").deque(maxlen=60)
+            wireguard._peer_history[key].append((now - 10, 0, 0, False))
+            wireguard._peer_history[key].append((now - 5, 100, 100, True))
+            wireguard._peer_history[key].append((now, 5100, 2600, True))
+
+        hist = wireguard.get_throughput_history()
+        # First interval spans disconnected -> connected: suppressed.
+        self.assertEqual(hist[key]["rx_bps"][0], 0.0)
+        # Second interval is fully connected: real rate.
+        self.assertAlmostEqual(hist[key]["rx_bps"][1], 1000.0, delta=10)
 
     def test_ping_history_skips_disconnected_peers(self):
         """Disconnected peers must not be actively pinged.
