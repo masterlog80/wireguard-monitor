@@ -46,7 +46,13 @@ export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 python run.py
 ```
 
-Open **http://\<your-server\>:5000** in a browser and log in.
+Open **http://\<your-server\>:5000** in a browser and log in with the `ADMIN_USERNAME`/`ADMIN_PASSWORD` you exported above.
+
+> ⚠️ **These credentials only take effect the first time the app starts** — specifically, the first time it needs to create `users.json` (or whatever `USERS_FILE` points to). If that file already exists from an earlier run, `ADMIN_USERNAME`/`ADMIN_PASSWORD` are silently ignored and the *original* credentials still apply. If you can't log in, check the terminal/log output on startup — it always prints one of:
+> - `created initial admin account '<user>'` — a fresh account was just seeded from your env vars, or
+> - `ADMIN_USERNAME/ADMIN_PASSWORD are ignored while this file exists` — an existing account was loaded instead, and your env vars had no effect.
+>
+> See **[Resetting the admin password](#resetting-the-admin-password)** below to fix this.
 
 ### Uninstall
 
@@ -117,8 +123,21 @@ A ready-to-use `wireguard-monitor.service` unit file is included.
 
 ### 1 — Copy to a permanent location
 
+Copy only the application files — **not** your local `venv/`, `.git/`, or any
+`users.json` / `peer_names.json` / `firewall_saves/` left over from testing
+the [Quick Start](#quick-start) above. Carrying those over is the single most
+common cause of "I set new credentials but they don't work" reports, since a
+leftover `users.json` would otherwise seed the service with old data.
+
 ```bash
-sudo cp -r . /opt/wireguard-monitor
+sudo mkdir -p /opt/wireguard-monitor
+sudo rsync -a --exclude='venv/' --exclude='.git/' --exclude='__pycache__/' \
+  --exclude='*.pyc' --exclude='users.json' --exclude='peer_names.json' \
+  --exclude='firewall_saves/' ./ /opt/wireguard-monitor/
+# No rsync? `sudo apt install rsync` (Debian/Ubuntu) or substitute a plain
+# `sudo cp -r . /opt/wireguard-monitor` and manually delete the excluded
+# paths afterward.
+
 cd /opt/wireguard-monitor
 python3 -m venv venv
 venv/bin/pip install --upgrade pip
@@ -131,16 +150,34 @@ venv/bin/pip install -r requirements.txt
 sudo mkdir -p /var/lib/wireguard-monitor
 ```
 
+This is where the service persists `users.json`, `peer_names.json`, and
+firewall snapshots (see `Environment=` in the unit file) — kept separate from
+`/opt/wireguard-monitor` so re-deploying the app code never touches your data.
+
 ### 3 — Set credentials
 
 ```bash
 sudo tee /etc/wireguard-monitor.env > /dev/null <<EOF
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(16))")
+ADMIN_PASSWORD=changeme
 SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 EOF
 sudo chmod 600 /etc/wireguard-monitor.env
 ```
+
+**Edit `ADMIN_PASSWORD` above before continuing** — either replace `changeme`
+with your own password, or generate a random one and make sure to note it
+down, e.g.:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(16))"
+```
+
+> ⚠️ Just like in the Quick Start, **these credentials are only applied the
+> first time the service starts** (when `/var/lib/wireguard-monitor/users.json`
+> doesn't exist yet). If you restart the service after editing
+> `ADMIN_PASSWORD` here and it still doesn't work, that file already exists —
+> see [Resetting the admin password](#resetting-the-admin-password) below.
 
 ### 4 — Install and enable the service
 
@@ -150,6 +187,44 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now wireguard-monitor
 sudo systemctl status wireguard-monitor
 ```
+
+Then check the startup log to confirm your credentials were actually applied:
+
+```bash
+sudo journalctl -u wireguard-monitor -n 20 --no-pager
+```
+
+You should see `created initial admin account 'admin'`. If instead you see
+`ADMIN_USERNAME/ADMIN_PASSWORD are ignored while this file exists`, a
+`users.json` from an earlier attempt is already in place — see the next
+section.
+
+### Resetting the admin password
+
+The admin account is only *seeded* from `ADMIN_USERNAME`/`ADMIN_PASSWORD` —
+once the users file exists, those env vars are permanently ignored on every
+future start (the app logs which case applies every time it starts, see
+above). Two ways to fix a "can't log in" situation:
+
+- **You can still log in as some account:** go to **Users** in the navbar and
+  change the password from there instead of via env vars.
+- **You're fully locked out:** stop the service, delete the users file so it
+  gets re-seeded from your current `ADMIN_USERNAME`/`ADMIN_PASSWORD`, then
+  restart.
+
+  ```bash
+  # systemd service:
+  sudo systemctl stop wireguard-monitor
+  sudo rm /var/lib/wireguard-monitor/users.json
+  sudo systemctl start wireguard-monitor
+
+  # Quick Start / development run (from the repo directory):
+  rm users.json
+  python run.py
+  ```
+
+  This resets **all** accounts, not just admin — recreate any other users
+  afterward from the Users page.
 
 ### Common service management commands
 

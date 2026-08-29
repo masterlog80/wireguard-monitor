@@ -1441,5 +1441,48 @@ class TestCsrfProtection(unittest.TestCase):
         return match.group(1).decode()
 
 
+class TestUserStoreStartupMessages(unittest.TestCase):
+    """UserStore should clearly log whether ADMIN_USERNAME/ADMIN_PASSWORD were
+    actually applied, since they're silently ignored once the users file
+    already exists -- this is the #1 cause of "my credentials don't work"
+    reports, so the behavior is covered explicitly here."""
+
+    def setUp(self):
+        _reset_user_store()
+
+    def tearDown(self):
+        _reset_user_store()
+
+    def test_seeding_a_fresh_store_prints_confirmation(self):
+        import io
+        import contextlib
+        from app.auth import UserStore
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            UserStore("/tmp/test_users_wireguard.json")
+
+        output = buf.getvalue()
+        self.assertIn("created initial admin account", output)
+        self.assertIn("admin", output)
+
+    def test_loading_an_existing_store_warns_env_vars_are_ignored(self):
+        import io
+        import contextlib
+        from app.auth import UserStore
+
+        # First run: seeds the file.
+        UserStore("/tmp/test_users_wireguard.json")
+
+        # Second run (simulating a restart after changing ADMIN_PASSWORD):
+        # the existing file wins, and this must be made obvious in the logs.
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            UserStore("/tmp/test_users_wireguard.json")
+
+        output = buf.getvalue()
+        self.assertIn("ignored while this file exists", output)
+
+
 if __name__ == "__main__":
     unittest.main()
