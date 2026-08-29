@@ -64,6 +64,8 @@ sudo rm -f /etc/wireguard-monitor.env
 
 ## Screenshots
 
+> Shown in the default dark theme. A light mode is also available via the toggle in the navbar (top right, next to your username).
+
 ### Login Page
 ![Login Page](https://github.com/user-attachments/assets/395fbf9c-d054-4601-97cf-e885b5493417)
 
@@ -196,6 +198,7 @@ python -m pytest tests.py -v
     └── static/
         ├── favicon.svg
         ├── css/style.css
+        ├── js/app.js          # shared helpers: CSRF-attaching fetch, HTML escaping
         ├── js/dashboard.js
         └── vendor/   # Bootstrap 5, Bootstrap Icons, Chart.js (vendored locally)
 ```
