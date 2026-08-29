@@ -37,7 +37,7 @@ A ready-to-use `wireguard-monitor.service` unit file is included.
 Pick **one** of the following. Both end with the app living at
 `/opt/wireguard-monitor`, owned by root, ready for the service to run.
 
-**Fresh clone (recommended for most people):**
+**Fresh clone:**
 
 ```bash
 sudo git clone https://github.com/masterlog80/wireguard-monitor.git /opt/wireguard-monitor
