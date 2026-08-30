@@ -204,8 +204,8 @@ def save_iptables_rules() -> Dict[str, Any]:
     rc, out, err = _run(["iptables-save"])
     if rc != 0:
         return {"ok": False, "error": err.strip() or "iptables-save failed"}
-    path = _iptables_save_path()
     try:
+        path = _iptables_save_path()
         with open(path, "w") as f:
             f.write(out)
         saved_at = os.stat(path).st_mtime
@@ -216,10 +216,10 @@ def save_iptables_rules() -> Dict[str, Any]:
 
 def restore_iptables_rules() -> Dict[str, Any]:
     """Restore iptables rules from the previously saved file."""
-    path = _iptables_save_path()
-    if not os.path.exists(path):
-        return {"ok": False, "error": "No saved iptables rules found"}
     try:
+        path = _iptables_save_path()
+        if not os.path.exists(path):
+            return {"ok": False, "error": "No saved iptables rules found"}
         with open(path) as f:
             rules_content = f.read()
     except OSError as exc:
@@ -232,8 +232,8 @@ def save_nftables_rules() -> Dict[str, Any]:
     rc, out, err = _run(["nft", "list", "ruleset"])
     if rc != 0:
         return {"ok": False, "error": err.strip() or "nft not available"}
-    path = _nftables_save_path()
     try:
+        path = _nftables_save_path()
         with open(path, "w") as f:
             f.write(out)
         saved_at = os.stat(path).st_mtime
@@ -248,10 +248,10 @@ def restore_nftables_rules() -> Dict[str, Any]:
     The current ruleset is captured before flushing so it can be reloaded if
     applying the saved rules fails, avoiding a window with no firewall rules.
     """
-    path = _nftables_save_path()
-    if not os.path.exists(path):
-        return {"ok": False, "error": "No saved nftables rules found"}
     try:
+        path = _nftables_save_path()
+        if not os.path.exists(path):
+            return {"ok": False, "error": "No saved nftables rules found"}
         with open(path) as f:
             saved_content = f.read()
     except OSError as exc:
@@ -262,7 +262,15 @@ def restore_nftables_rules() -> Dict[str, Any]:
 def get_saved_rules_info() -> Dict[str, Any]:
     """Return metadata about any previously saved rule snapshots."""
 
-    def _file_info(path: str) -> Optional[Dict[str, Any]]:
+    def _file_info(path_fn) -> Dict[str, Any]:
+        try:
+            path = path_fn()
+        except OSError:
+            # e.g. the save directory can't be created (permissions,
+            # read-only filesystem under a hardened systemd unit) --
+            # treat that the same as "nothing saved yet" rather than 500ing
+            # the whole page.
+            return {"exists": False}
         if os.path.exists(path):
             try:
                 stat = os.stat(path)
@@ -272,6 +280,6 @@ def get_saved_rules_info() -> Dict[str, Any]:
         return {"exists": False}
 
     return {
-        "iptables": _file_info(_iptables_save_path()),
-        "nftables": _file_info(_nftables_save_path()),
+        "iptables": _file_info(_iptables_save_path),
+        "nftables": _file_info(_nftables_save_path),
     }

@@ -98,6 +98,14 @@ You should see `created initial admin account 'admin'`. If instead you see
 `users.json` from an earlier attempt is already in place — see the next
 section.
 
+> ⚠️ **Already have this service installed?** Pulling a new version of this
+> repo does **not** update the copy systemd is actually running from — you
+> installed a *copy* of `wireguard-monitor.service` at
+> `/etc/systemd/system/` in step 3, and that copy is what's live. After
+> `git pull`, always re-run this step's three commands (`cp` the updated
+> unit file, `daemon-reload`, `restart`) to pick up any changes to the
+> service file itself, e.g. new `Environment=` lines.
+
 ### Uninstall
 
 ```bash
@@ -175,6 +183,7 @@ Open **http://\<your-server\>:5000** in a browser and log in with the `ADMIN_USE
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Sliding window (seconds) used for the login lockout above |
 | `MAX_CONTENT_LENGTH` | `16777216` (16 MiB) | Maximum size of any request body (JSON payloads, config/rules uploads) |
 | `MIN_PASSWORD_LENGTH` | `8` | Minimum password length enforced when creating a user or changing a password |
+| `FIREWALL_SAVE_DIR` | `firewall_saves` (relative) | Directory used to store saved iptables/nftables rule snapshots. The bundled systemd service overrides this to `/var/lib/wireguard-monitor/firewall_saves`, since the default relative path would otherwise resolve inside the service's read-only `/opt/wireguard-monitor` |
 
 ---
 

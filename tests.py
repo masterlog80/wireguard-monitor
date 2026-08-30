@@ -452,6 +452,24 @@ Chain OUTPUT (policy ACCEPT 42 packets, 1024 bytes)
         self.assertFalse(result["ok"])
         self.assertIn("permission denied", result["error"])
 
+    def test_save_iptables_rules_handles_unwritable_save_dir(self):
+        """Regression test: on a hardened systemd deployment, the default
+        FIREWALL_SAVE_DIR can resolve to a read-only path (see
+        wireguard-monitor.service's ProtectSystem=strict). Previously
+        os.makedirs() failing here wasn't caught, causing an unhandled 500
+        -- surfaced in the browser as "Unexpected token '<' ... is not
+        valid JSON" instead of a readable error, since Flask's default
+        error page is HTML and every Save/Restore button expects JSON.
+        """
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(0, "*filter\nCOMMIT\n", "")), \
+             patch.object(firewall, "_ensure_save_dir", side_effect=PermissionError("Read-only file system")):
+            result = firewall.save_iptables_rules()
+
+        self.assertFalse(result["ok"])
+        self.assertIn("Read-only file system", result["error"])
+
     def test_restore_iptables_rules_no_file(self):
         from app import firewall
 
@@ -505,6 +523,16 @@ Chain OUTPUT (policy ACCEPT 42 packets, 1024 bytes)
 
         self.assertFalse(result["ok"])
 
+    def test_save_nftables_rules_handles_unwritable_save_dir(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(0, "table ip filter {}\n", "")), \
+             patch.object(firewall, "_ensure_save_dir", side_effect=PermissionError("Read-only file system")):
+            result = firewall.save_nftables_rules()
+
+        self.assertFalse(result["ok"])
+        self.assertIn("Read-only file system", result["error"])
+
     def test_restore_nftables_rules_no_file(self):
         from app import firewall
 
@@ -537,6 +565,21 @@ Chain OUTPUT (policy ACCEPT 42 packets, 1024 bytes)
         finally:
             os.unlink(tmp_path)
 
+    def test_restore_rules_handles_unwritable_save_dir(self):
+        """Same regression as the save-side tests: resolving the save path
+        can itself raise (not just reading the file at that path)."""
+        from app import firewall
+
+        with patch.object(firewall, "_iptables_save_path", side_effect=PermissionError("Read-only file system")):
+            result = firewall.restore_iptables_rules()
+        self.assertFalse(result["ok"])
+        self.assertIn("Read-only file system", result["error"])
+
+        with patch.object(firewall, "_nftables_save_path", side_effect=PermissionError("Read-only file system")):
+            result = firewall.restore_nftables_rules()
+        self.assertFalse(result["ok"])
+        self.assertIn("Read-only file system", result["error"])
+
     def test_get_saved_rules_info_no_files(self):
         from app import firewall
 
@@ -565,6 +608,19 @@ Chain OUTPUT (policy ACCEPT 42 packets, 1024 bytes)
             self.assertFalse(info["nftables"]["exists"])
         finally:
             os.unlink(tmp_path)
+
+    def test_get_saved_rules_info_handles_unwritable_save_dir(self):
+        """Same regression as the save/restore tests above, but for the
+        endpoint the firewall page calls on every load (loadSnapshotInfo())
+        -- an unwritable FIREWALL_SAVE_DIR shouldn't 500 the whole page."""
+        from app import firewall
+
+        with patch.object(firewall, "_iptables_save_path", side_effect=PermissionError("Read-only file system")), \
+             patch.object(firewall, "_nftables_save_path", side_effect=PermissionError("Read-only file system")):
+            info = firewall.get_saved_rules_info()
+
+        self.assertFalse(info["iptables"]["exists"])
+        self.assertFalse(info["nftables"]["exists"])
 
 
 class TestFirewallRoutes(unittest.TestCase):
