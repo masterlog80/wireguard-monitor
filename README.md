@@ -8,7 +8,7 @@ A Flask-based web application that provides a real-time monitoring dashboard for
 
 - 🔑 **User authentication** – Login/logout with configurable credentials; multi-user management via the web UI (create, delete, change passwords)
 - 📊 **WireGuard status** – Interface name, public key, listening port, and per-peer status table (endpoint, allowed IPs, last handshake, connected/disconnected state)
-- 📈 **Throughput graphs** – Per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds. Rate is only computed across intervals where the peer had a live WireGuard handshake — WireGuard can report a slow trickle of raw "sent" bytes toward a peer with no recent handshake (traffic attempted from elsewhere on the network, counted before delivery is ever confirmed), and that isn't meaningful as this peer's throughput, so a Disconnected peer's chart shows flat 0 regardless of what the raw counters do. Grid layout is adjustable (2/3/4 columns, remembered per-browser)
+- 📈 **Throughput graphs** – Per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds. Rate is only computed across intervals where the peer had a live WireGuard handshake — WireGuard can report a slow trickle of raw "sent" bytes toward a peer with no recent handshake (traffic attempted from elsewhere on the network, counted before delivery is ever confirmed), and that isn't meaningful as this peer's throughput, so a Disconnected peer's chart shows flat 0 regardless of what the raw counters do. Grid layout is adjustable (2/3/4 columns, remembered per-browser). RX/TX default to WireGuard's own convention (RX = server received *from* the peer, TX = server sent *to* the peer) — click the ⇄ icon on any peer's card to flip that individual peer's chart to show it from the peer's own point of view instead (per-peer, remembered per-browser)
 - 📡 **Ping latency graphs** – Per-peer round-trip time chart, refreshed every 5 seconds. Only actively probes peers with a recent WireGuard handshake — a Disconnected peer is shown as "Offline" on its charts instead of being pinged, since WireGuard's own handshake (not this app's ping) is what detects a peer coming back online
 - 🔥 **Firewall rules page** – Displays both `iptables` and `nftables` rulesets
 - 💾 **Firewall save / restore** – Snapshot and reload active firewall rules server-side
@@ -170,6 +170,7 @@ Open **http://\<your-server\>:5000** in a browser and log in with the `ADMIN_USE
 | `MAX_HISTORY` | `60` | Number of 5-second data points kept per peer |
 | `SESSION_COOKIE_SECURE` | `false` | Set `true` once served over HTTPS to mark cookies `Secure` |
 | `WTF_CSRF_ENABLED` | `true` | CSRF protection for all state-changing requests — leave enabled in production |
+| `WTF_CSRF_TIME_LIMIT` | *(none)* | Seconds before a page's CSRF token expires. Unset by default since this is a long-running dashboard people leave open for hours; set a value (e.g. `3600`) to reintroduce Flask-WTF's normal expiry if you want tighter security |
 | `LOGIN_RATE_LIMIT_ATTEMPTS` | `10` | Failed login attempts allowed per client IP before a temporary lockout |
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Sliding window (seconds) used for the login lockout above |
 | `MAX_CONTENT_LENGTH` | `16777216` (16 MiB) | Maximum size of any request body (JSON payloads, config/rules uploads) |

@@ -41,6 +41,15 @@ class Config:
     # Kept on by default; tests disable it explicitly so the existing
     # test client requests (which don't carry a CSRF token) keep working.
     WTF_CSRF_ENABLED = _bool_env("WTF_CSRF_ENABLED", True)
+    # This is a long-running, auto-refreshing dashboard people routinely leave
+    # open for hours -- the CSRF token embedded in the page at load time is
+    # never refreshed client-side, so Flask-WTF's 3600s (1 hour) default
+    # would silently break every button (Save, Restart, rename, ...) on any
+    # session left open longer than that, surfacing as a confusing "<!doctype
+    # ..." is not valid JSON" error in the browser console. None ties the
+    # token's validity to the session itself instead of a separate clock.
+    _csrf_time_limit_env = os.environ.get("WTF_CSRF_TIME_LIMIT")
+    WTF_CSRF_TIME_LIMIT = int(_csrf_time_limit_env) if _csrf_time_limit_env else None
 
     # --- Login rate limiting ---
     # Max failed login attempts allowed from a single IP within the window
