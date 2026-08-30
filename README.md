@@ -47,7 +47,7 @@ venv/bin/pip install --upgrade pip
 venv/bin/pip install -r requirements.txt
 ```
 
-### 2 — Create the data directory and et credentials
+### 2 — Create the data directory and the credentials
 
 ```bash
 sudo mkdir -p /var/lib/wireguard-monitor
