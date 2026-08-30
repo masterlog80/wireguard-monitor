@@ -170,6 +170,7 @@ Open **http://\<your-server\>:5000** in a browser and log in with the `ADMIN_USE
 | `MAX_HISTORY` | `60` | Number of 5-second data points kept per peer |
 | `SESSION_COOKIE_SECURE` | `false` | Set `true` once served over HTTPS to mark cookies `Secure` |
 | `WTF_CSRF_ENABLED` | `true` | CSRF protection for all state-changing requests — leave enabled in production |
+| `WTF_CSRF_TIME_LIMIT` | *(none)* | Seconds before a page's CSRF token expires. Unset by default since this is a long-running dashboard people leave open for hours; set a value (e.g. `3600`) to reintroduce Flask-WTF's normal expiry if you want tighter security |
 | `LOGIN_RATE_LIMIT_ATTEMPTS` | `10` | Failed login attempts allowed per client IP before a temporary lockout |
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Sliding window (seconds) used for the login lockout above |
 | `MAX_CONTENT_LENGTH` | `16777216` (16 MiB) | Maximum size of any request body (JSON payloads, config/rules uploads) |

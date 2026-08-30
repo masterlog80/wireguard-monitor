@@ -49,6 +49,17 @@ class TestConfig(unittest.TestCase):
         self.assertIsNotNone(Config.SECRET_KEY)
         self.assertEqual(Config.ADMIN_USERNAME, "admin")
 
+    def test_csrf_token_has_no_default_time_limit(self):
+        """This is a long-running, auto-refreshing dashboard people leave
+        open for hours -- the page's CSRF token is never refreshed
+        client-side, so it must not expire on Flask-WTF's default 1-hour
+        clock or every button breaks on any session left open longer than
+        that."""
+        import config
+        importlib.reload(config)
+        from config import Config
+        self.assertIsNone(Config.WTF_CSRF_TIME_LIMIT)
+
 
 class TestAppFactory(unittest.TestCase):
     def setUp(self):
@@ -1488,7 +1499,9 @@ class TestCsrfProtection(unittest.TestCase):
             "/login",
             data={"username": "admin", "password": "testpass"},
         )
-        self.assertEqual(resp.status_code, 400)
+        # Non-API routes get a friendly redirect (with a flashed message)
+        # instead of Flask-WTF's raw HTML error page.
+        self.assertEqual(resp.status_code, 302)
 
     def test_login_with_token_succeeds(self):
         get_resp = self.client.get("/login")
@@ -1514,6 +1527,26 @@ class TestCsrfProtection(unittest.TestCase):
         )
         resp = self.client.post("/api/restart")
         self.assertEqual(resp.status_code, 400)
+
+    def test_api_csrf_failure_returns_json_not_html(self):
+        """Regression test: a CSRF failure on an /api/ route must return a
+        JSON body, not Flask-WTF's default HTML error page. Returning HTML
+        there breaks every fetch()-based button on the site (Save current
+        rules, Restart, rename peer, ...), which all call resp.json() and
+        would otherwise crash with "Unexpected token '<' ... is not valid
+        JSON" in the browser console instead of showing a readable error.
+        """
+        self.client.post(
+            "/login",
+            data={"username": "admin", "password": "testpass"},
+            headers={"X-CSRFToken": self._get_token()},
+        )
+        resp = self.client.post("/api/firewall/save", json={"type": "iptables"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(resp.content_type.startswith("application/json"))
+        body = resp.get_json()
+        self.assertFalse(body["ok"])
+        self.assertIn("error", body)
 
     def _get_token(self):
         import re
