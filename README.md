@@ -17,6 +17,7 @@ A Flask-based web application that provides a real-time monitoring dashboard for
 - 📤 **WireGuard config import** – Upload a `.conf` file directly from the dashboard to `/etc/wireguard/` with mode `0600`
 - 🏷 **Peer naming** – Assign friendly names to peers; names persisted across restarts
 - 🌗 **Light/Dark mode** – Toggle in the navbar (top right, next to your username); choice is remembered per-browser
+- 🏷️ **Version display** – Current app version shown in the footer of every page and in `/api/status`, so you can always tell what's actually deployed
 
 ---
 
@@ -98,6 +99,14 @@ You should see `created initial admin account 'admin'`. If instead you see
 `users.json` from an earlier attempt is already in place — see the next
 section.
 
+> ⚠️ **Already have this service installed?** Pulling a new version of this
+> repo does **not** update the copy systemd is actually running from — you
+> installed a *copy* of `wireguard-monitor.service` at
+> `/etc/systemd/system/` in step 3, and that copy is what's live. After
+> `git pull`, always re-run this step's three commands (`cp` the updated
+> unit file, `daemon-reload`, `restart`) to pick up any changes to the
+> service file itself, e.g. new `Environment=` lines.
+
 ### Uninstall
 
 ```bash
@@ -175,6 +184,7 @@ Open **http://\<your-server\>:5000** in a browser and log in with the `ADMIN_USE
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Sliding window (seconds) used for the login lockout above |
 | `MAX_CONTENT_LENGTH` | `16777216` (16 MiB) | Maximum size of any request body (JSON payloads, config/rules uploads) |
 | `MIN_PASSWORD_LENGTH` | `8` | Minimum password length enforced when creating a user or changing a password |
+| `FIREWALL_SAVE_DIR` | `firewall_saves` (relative) | Directory used to store saved iptables/nftables rule snapshots. The bundled systemd service overrides this to `/var/lib/wireguard-monitor/firewall_saves`, since the default relative path would otherwise resolve inside the service's read-only `/opt/wireguard-monitor` |
 
 ---
 
@@ -228,6 +238,22 @@ above). Two ways to fix a "can't log in" situation:
 
 ---
 
+## Versioning
+
+The current version is tracked in a single `VERSION` file at the repo root
+(a plain `MAJOR.MINOR.PATCH` string, no `v` prefix) and shown in the footer
+of every page and in the `/api/status` response, so it's always possible to
+tell exactly what's deployed on a given host — useful when comparing a
+running instance against these docs, or reporting a bug.
+
+**Every change to the app should bump `VERSION`** as part of that change,
+following normal semver judgment: PATCH for fixes, MINOR for new
+backwards-compatible features, MAJOR for breaking changes. There's no build
+step involved — just edit the file and commit it alongside the rest of the
+change.
+
+---
+
 ## Running Tests
 
 ```bash
@@ -244,6 +270,7 @@ python -m pytest tests.py -v
 ├── config.py
 ├── requirements.txt
 ├── tests.py
+├── VERSION
 ├── wireguard-monitor.service
 └── app/
     ├── __init__.py

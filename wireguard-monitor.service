@@ -19,6 +19,7 @@ User=root
 # Write data files to a stable location
 Environment=USERS_FILE=/var/lib/wireguard-monitor/users.json
 Environment=PEER_NAMES_FILE=/var/lib/wireguard-monitor/peer_names.json
+Environment=FIREWALL_SAVE_DIR=/var/lib/wireguard-monitor/firewall_saves
 
 # Harden the service
 ProtectSystem=strict

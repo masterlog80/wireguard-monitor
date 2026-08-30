@@ -61,6 +61,22 @@ class TestConfig(unittest.TestCase):
         self.assertIsNone(Config.WTF_CSRF_TIME_LIMIT)
 
 
+class TestAppVersion(unittest.TestCase):
+    def test_reads_version_file(self):
+        from app import get_app_version
+
+        version = get_app_version()
+        # Loosely validate it looks like a version string rather than
+        # pinning the exact value, which will change over time.
+        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+
+    def test_falls_back_when_version_file_missing(self):
+        from app import get_app_version
+
+        with patch("builtins.open", side_effect=OSError("no such file")):
+            self.assertEqual(get_app_version(), "unknown")
+
+
 class TestAppFactory(unittest.TestCase):
     def setUp(self):
         # Remove any leftover temp users file and reset the singleton
@@ -111,6 +127,29 @@ class TestAppFactory(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b"admin", resp.data)
         self.assertIn(b'id="theme-toggle-btn"', resp.data)
+
+    def test_footer_shows_app_version(self):
+        from app import get_app_version
+
+        expected = f"v{get_app_version()}".encode()
+
+        resp = self.client.get("/login")
+        self.assertIn(expected, resp.data)
+
+        self.client.post(
+            "/login", data={"username": "admin", "password": "testpass"}
+        )
+        resp = self.client.get("/")
+        self.assertIn(expected, resp.data)
+
+    def test_api_status_includes_version(self):
+        from app import get_app_version
+
+        self.client.post(
+            "/login", data={"username": "admin", "password": "testpass"}
+        )
+        resp = self.client.get("/api/status")
+        self.assertEqual(resp.get_json()["version"], get_app_version())
 
     def test_login_page_has_no_theme_toggle(self):
         # The toggle only makes sense once a user (and their preference) exist
@@ -452,6 +491,24 @@ Chain OUTPUT (policy ACCEPT 42 packets, 1024 bytes)
         self.assertFalse(result["ok"])
         self.assertIn("permission denied", result["error"])
 
+    def test_save_iptables_rules_handles_unwritable_save_dir(self):
+        """Regression test: on a hardened systemd deployment, the default
+        FIREWALL_SAVE_DIR can resolve to a read-only path (see
+        wireguard-monitor.service's ProtectSystem=strict). Previously
+        os.makedirs() failing here wasn't caught, causing an unhandled 500
+        -- surfaced in the browser as "Unexpected token '<' ... is not
+        valid JSON" instead of a readable error, since Flask's default
+        error page is HTML and every Save/Restore button expects JSON.
+        """
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(0, "*filter\nCOMMIT\n", "")), \
+             patch.object(firewall, "_ensure_save_dir", side_effect=PermissionError("Read-only file system")):
+            result = firewall.save_iptables_rules()
+
+        self.assertFalse(result["ok"])
+        self.assertIn("Read-only file system", result["error"])
+
     def test_restore_iptables_rules_no_file(self):
         from app import firewall
 
@@ -505,6 +562,16 @@ Chain OUTPUT (policy ACCEPT 42 packets, 1024 bytes)
 
         self.assertFalse(result["ok"])
 
+    def test_save_nftables_rules_handles_unwritable_save_dir(self):
+        from app import firewall
+
+        with patch.object(firewall, "_run", return_value=(0, "table ip filter {}\n", "")), \
+             patch.object(firewall, "_ensure_save_dir", side_effect=PermissionError("Read-only file system")):
+            result = firewall.save_nftables_rules()
+
+        self.assertFalse(result["ok"])
+        self.assertIn("Read-only file system", result["error"])
+
     def test_restore_nftables_rules_no_file(self):
         from app import firewall
 
@@ -537,6 +604,21 @@ Chain OUTPUT (policy ACCEPT 42 packets, 1024 bytes)
         finally:
             os.unlink(tmp_path)
 
+    def test_restore_rules_handles_unwritable_save_dir(self):
+        """Same regression as the save-side tests: resolving the save path
+        can itself raise (not just reading the file at that path)."""
+        from app import firewall
+
+        with patch.object(firewall, "_iptables_save_path", side_effect=PermissionError("Read-only file system")):
+            result = firewall.restore_iptables_rules()
+        self.assertFalse(result["ok"])
+        self.assertIn("Read-only file system", result["error"])
+
+        with patch.object(firewall, "_nftables_save_path", side_effect=PermissionError("Read-only file system")):
+            result = firewall.restore_nftables_rules()
+        self.assertFalse(result["ok"])
+        self.assertIn("Read-only file system", result["error"])
+
     def test_get_saved_rules_info_no_files(self):
         from app import firewall
 
@@ -565,6 +647,19 @@ Chain OUTPUT (policy ACCEPT 42 packets, 1024 bytes)
             self.assertFalse(info["nftables"]["exists"])
         finally:
             os.unlink(tmp_path)
+
+    def test_get_saved_rules_info_handles_unwritable_save_dir(self):
+        """Same regression as the save/restore tests above, but for the
+        endpoint the firewall page calls on every load (loadSnapshotInfo())
+        -- an unwritable FIREWALL_SAVE_DIR shouldn't 500 the whole page."""
+        from app import firewall
+
+        with patch.object(firewall, "_iptables_save_path", side_effect=PermissionError("Read-only file system")), \
+             patch.object(firewall, "_nftables_save_path", side_effect=PermissionError("Read-only file system")):
+            info = firewall.get_saved_rules_info()
+
+        self.assertFalse(info["iptables"]["exists"])
+        self.assertFalse(info["nftables"]["exists"])
 
 
 class TestFirewallRoutes(unittest.TestCase):

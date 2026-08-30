@@ -7,7 +7,7 @@ import re
 import subprocess
 import zipfile
 
-from flask import Blueprint, jsonify, make_response, render_template, request, send_file
+from flask import Blueprint, current_app, jsonify, make_response, render_template, request, send_file
 from flask_login import login_required
 
 from . import wireguard, firewall
@@ -37,7 +37,9 @@ def firewall_page():
 @main_bp.route("/api/status")
 @login_required
 def api_status():
-    return jsonify(wireguard.get_wg_status())
+    status = wireguard.get_wg_status()
+    status["version"] = current_app.config.get("VERSION", "unknown")
+    return jsonify(status)
 
 
 @main_bp.route("/api/peers")
