@@ -61,6 +61,22 @@ class TestConfig(unittest.TestCase):
         self.assertIsNone(Config.WTF_CSRF_TIME_LIMIT)
 
 
+class TestAppVersion(unittest.TestCase):
+    def test_reads_version_file(self):
+        from app import get_app_version
+
+        version = get_app_version()
+        # Loosely validate it looks like a version string rather than
+        # pinning the exact value, which will change over time.
+        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+
+    def test_falls_back_when_version_file_missing(self):
+        from app import get_app_version
+
+        with patch("builtins.open", side_effect=OSError("no such file")):
+            self.assertEqual(get_app_version(), "unknown")
+
+
 class TestAppFactory(unittest.TestCase):
     def setUp(self):
         # Remove any leftover temp users file and reset the singleton
@@ -111,6 +127,29 @@ class TestAppFactory(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b"admin", resp.data)
         self.assertIn(b'id="theme-toggle-btn"', resp.data)
+
+    def test_footer_shows_app_version(self):
+        from app import get_app_version
+
+        expected = f"v{get_app_version()}".encode()
+
+        resp = self.client.get("/login")
+        self.assertIn(expected, resp.data)
+
+        self.client.post(
+            "/login", data={"username": "admin", "password": "testpass"}
+        )
+        resp = self.client.get("/")
+        self.assertIn(expected, resp.data)
+
+    def test_api_status_includes_version(self):
+        from app import get_app_version
+
+        self.client.post(
+            "/login", data={"username": "admin", "password": "testpass"}
+        )
+        resp = self.client.get("/api/status")
+        self.assertEqual(resp.get_json()["version"], get_app_version())
 
     def test_login_page_has_no_theme_toggle(self):
         # The toggle only makes sense once a user (and their preference) exist

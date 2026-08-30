@@ -1,6 +1,8 @@
 """Flask application factory."""
 from __future__ import annotations
 
+import os
+
 from flask import Flask, flash, jsonify, redirect, request, url_for
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
@@ -11,10 +13,30 @@ from .auth import User, load_user
 
 csrf = CSRFProtect()
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def get_app_version() -> str:
+    """Read the app version from the VERSION file at the repo root.
+
+    Resolved relative to this file's own location rather than the process's
+    current working directory, so it works the same regardless of how/where
+    the app is launched from (unlike a couple of the path defaults this
+    project has been bitten by before). Falls back to "unknown" if the file
+    is missing or unreadable rather than failing app startup over it.
+    """
+    try:
+        with open(os.path.join(_REPO_ROOT, "VERSION")) as f:
+            return f.read().strip() or "unknown"
+    except OSError:
+        return "unknown"
+
 
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config["VERSION"] = get_app_version()
+    app.jinja_env.globals["app_version"] = app.config["VERSION"]
 
     # --- CSRF protection for all state-changing requests (forms + JSON APIs) ---
     csrf.init_app(app)
