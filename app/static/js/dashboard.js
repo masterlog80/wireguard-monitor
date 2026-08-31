@@ -29,11 +29,6 @@ function formatBps(bps) {
   return formatBytes(bps) + '/s';
 }
 
-function shortKey(key) {
-  if (!key || key.length <= 16) return key;
-  return key.slice(0, 8) + '…' + key.slice(-8);
-}
-
 function timeAgo(epochSeconds) {
   if (!epochSeconds || epochSeconds === 0) return 'Never';
   const diff = Math.floor(Date.now() / 1000) - epochSeconds;
@@ -53,36 +48,13 @@ let peerConnected = {};  // public_key -> bool, populated by refreshPeers()
 // public_key -> true when the Throughput chart should show RX/TX from this
 // peer's own point of view instead of the server's (WireGuard's native
 // convention: RX = server received from peer, TX = server sent to peer).
-// Persisted per-browser, keyed by peer so each peer's preference is
-// independent.
-let rxTxPeerPerspective = {};
-try {
-  rxTxPeerPerspective = JSON.parse(localStorage.getItem('rxTxPeerPerspective') || '{}');
-} catch (e) {
-  rxTxPeerPerspective = {};
-}
+// Set on the Options page (/options); read-only here. Re-read on every
+// page load, so a change made on the Options page takes effect the next
+// time the dashboard is opened/reloaded.
+const rxTxPeerPerspective = loadPeerPerspectiveMap();
 
 function isPeerPerspective(key) {
   return !!rxTxPeerPerspective[key];
-}
-
-function togglePeerPerspective(key) {
-  if (rxTxPeerPerspective[key]) {
-    delete rxTxPeerPerspective[key];
-  } else {
-    rxTxPeerPerspective[key] = true;
-  }
-  localStorage.setItem('rxTxPeerPerspective', JSON.stringify(rxTxPeerPerspective));
-
-  // Apply immediately to an already-rendered chart rather than waiting for
-  // the next 5s refresh.
-  const chart = _throughputCharts[key];
-  if (chart && chart.__lastHist) {
-    applyThroughputDatasets(chart, key, chart.__lastHist);
-    chart.update();
-  }
-  const cardEl = document.querySelector(`#throughput-charts-container [data-peer-key="${CSS.escape(key)}"]`);
-  if (cardEl) updateChartCardPerspectiveBadge(cardEl, key);
 }
 
 // Assign the RX/TX datasets on a throughput chart according to the
@@ -99,19 +71,6 @@ function applyThroughputDatasets(chart, key, hist) {
   } else {
     chart.data.datasets[0].data = hist.rx_bps;
     chart.data.datasets[1].data = hist.tx_bps;
-  }
-}
-
-function updateChartCardPerspectiveBadge(cardEl, key) {
-  const badge = cardEl.querySelector('.peer-perspective-badge');
-  if (!badge) return;
-  badge.classList.toggle('d-none', !isPeerPerspective(key));
-  const btn = cardEl.querySelector('.perspective-toggle-btn');
-  if (btn) {
-    btn.classList.toggle('text-info', isPeerPerspective(key));
-    btn.title = isPeerPerspective(key)
-      ? "Showing this peer's own perspective -- click to switch back to the server's perspective"
-      : "Showing the server's perspective (default) -- click to view from this peer's perspective";
   }
 }
 
@@ -303,8 +262,7 @@ document.addEventListener('themechange', () => {
   }
 });
 
-function getOrCreateCard(containerId, key, title, options) {
-  options = options || {};
+function getOrCreateCard(containerId, key, title) {
   const container = document.getElementById(containerId);
   // Remove placeholder if present
   const placeholder = container.querySelector('p.text-muted');
@@ -315,19 +273,11 @@ function getOrCreateCard(containerId, key, title, options) {
     card = document.createElement('div');
     card.className = 'col mb-3';
     card.setAttribute('data-peer-key', key);
-    const perspectiveControls = options.showPerspectiveToggle ? `
-          <span class="badge bg-info-subtle text-info-emphasis peer-perspective-badge d-none">Peer view</span>
-          <button type="button" class="btn btn-sm btn-link p-0 ms-auto text-muted perspective-toggle-btn"
-                  data-peer-key="${escapeHtml(key)}"
-                  title="Showing the server's perspective (default) -- click to view from this peer's perspective">
-            <i class="bi bi-arrow-left-right"></i>
-          </button>` : '';
     card.innerHTML = `
       <div class="card h-100">
         <div class="card-header py-2 d-flex align-items-center gap-2">
           <span class="peer-card-title text-info" title="${escapeHtml(key)}">${escapeHtml(title)}</span>
           <span class="badge bg-secondary peer-offline-badge d-none" title="No recent WireGuard handshake -- not actively probed">Offline</span>
-          ${perspectiveControls}
         </div>
         <div class="card-body">
           <div class="chart-wrapper"><canvas></canvas></div>
@@ -344,7 +294,6 @@ function getOrCreateCard(containerId, key, title, options) {
     row.appendChild(card);
   }
   updateChartCardOfflineBadge(card, key);
-  if (options.showPerspectiveToggle) updateChartCardPerspectiveBadge(card, key);
   return card.querySelector('canvas');
 }
 
@@ -360,7 +309,6 @@ function updateChartCardTitle(containerId, key, title) {
     const titleEl = cardEl.querySelector('.peer-card-title');
     if (titleEl) titleEl.textContent = title;
     updateChartCardOfflineBadge(cardEl, key);
-    updateChartCardPerspectiveBadge(cardEl, key);  // no-op if this card has no toggle
   }
 }
 
@@ -371,7 +319,7 @@ async function refreshThroughput() {
 
     for (const [key, hist] of Object.entries(data)) {
       const label = 'Throughput: ' + peerLabel(key);
-      const canvas = getOrCreateCard('throughput-charts-container', key, label, { showPerspectiveToggle: true });
+      const canvas = getOrCreateCard('throughput-charts-container', key, label);
       updateChartCardTitle('throughput-charts-container', key, label);
 
       if (_throughputCharts[key]) {
@@ -607,11 +555,6 @@ refreshAll();
 setInterval(refreshAll, 5000);
 
 document.getElementById('restart-btn').addEventListener('click', restartWireguard);
-
-document.getElementById('throughput-charts-container').addEventListener('click', (e) => {
-  const btn = e.target.closest('.perspective-toggle-btn');
-  if (btn) togglePeerPerspective(btn.getAttribute('data-peer-key'));
-});
 
 const columnsSelect = document.getElementById('chart-columns-select');
 columnsSelect.value = String(chartColumns);

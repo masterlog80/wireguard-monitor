@@ -29,6 +29,12 @@ def firewall_page():
     return render_template("firewall.html", rules=rules)
 
 
+@main_bp.route("/options")
+@login_required
+def options_page():
+    return render_template("options.html")
+
+
 # ---------------------------------------------------------------------------
 # JSON API endpoints (polled by the dashboard JS every 5 s)
 # ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ A Flask-based web application that provides a real-time monitoring dashboard for
 
 - 🔑 **User authentication** – Login/logout with configurable credentials; multi-user management via the web UI (create, delete, change passwords)
 - 📊 **WireGuard status** – Interface name, public key, listening port, and per-peer status table (endpoint, allowed IPs, last handshake, connected/disconnected state)
-- 📈 **Throughput graphs** – Per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds. Rate is only computed across intervals where the peer had a live WireGuard handshake — WireGuard can report a slow trickle of raw "sent" bytes toward a peer with no recent handshake (traffic attempted from elsewhere on the network, counted before delivery is ever confirmed), and that isn't meaningful as this peer's throughput, so a Disconnected peer's chart shows flat 0 regardless of what the raw counters do. Grid layout is adjustable (2/3/4 columns, remembered per-browser). RX/TX default to WireGuard's own convention (RX = server received *from* the peer, TX = server sent *to* the peer) — click the ⇄ icon on any peer's card to flip that individual peer's chart to show it from the peer's own point of view instead (per-peer, remembered per-browser)
+- 📈 **Throughput graphs** – Per-peer RX/TX bytes-per-second chart, refreshed every 5 seconds. Rate is only computed across intervals where the peer had a live WireGuard handshake — WireGuard can report a slow trickle of raw "sent" bytes toward a peer with no recent handshake (traffic attempted from elsewhere on the network, counted before delivery is ever confirmed), and that isn't meaningful as this peer's throughput, so a Disconnected peer's chart shows flat 0 regardless of what the raw counters do. Grid layout is adjustable (2/3/4 columns, remembered per-browser). RX/TX default to WireGuard's own convention (RX = server received *from* the peer, TX = server sent *to* the peer) — enable "Peer view" per peer on the [Options page](#options-page) to show that peer's chart from its own point of view instead
 - 📡 **Ping latency graphs** – Per-peer round-trip time chart, refreshed every 5 seconds. Only actively probes peers with a recent WireGuard handshake — a Disconnected peer is shown as "Offline" on its charts instead of being pinged, since WireGuard's own handshake (not this app's ping) is what detects a peer coming back online
 - 🔥 **Firewall rules page** – Displays both `iptables` and `nftables` rulesets
 - 💾 **Firewall save / restore** – Snapshot and reload active firewall rules server-side
@@ -144,6 +144,19 @@ Open **http://\<your-server\>:5000** in a browser and log in with the `ADMIN_USE
 > - `ADMIN_USERNAME/ADMIN_PASSWORD are ignored while this file exists` — an existing account was loaded instead, and your env vars had no effect.
 >
 > See **[Resetting the admin password](#resetting-the-admin-password)** below to fix this.
+
+---
+
+## Options Page
+
+A dedicated `/options` page (linked in the navbar) holds settings that apply
+across the app rather than to a single view. Currently:
+
+- **Peer View** — a switch per peer controlling whether that peer's
+  Dashboard Throughput chart is labeled from the server's point of view
+  (the default) or that peer's own point of view. See the Throughput
+  graphs bullet above for what this means. Stored per-browser, same as
+  the light/dark and chart-column preferences.
 
 ---
 
@@ -285,12 +298,14 @@ python -m pytest tests.py -v
     │   ├── login.html
     │   ├── dashboard.html
     │   ├── firewall.html
-    │   └── users.html
+    │   ├── users.html
+    │   └── options.html
     └── static/
         ├── favicon.svg
         ├── css/style.css
         ├── js/app.js          # shared helpers: CSRF-attaching fetch, HTML escaping
         ├── js/dashboard.js
+        ├── js/options.js
         └── vendor/   # Bootstrap 5, Bootstrap Icons, Chart.js (vendored locally)
 ```
 

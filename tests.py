@@ -4,10 +4,12 @@ import os
 import sys
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 # Ensure the repo root is importable
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_PROJECT_ROOT = Path(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, str(_PROJECT_ROOT))
 
 # Use a fixed secret key for tests and a temp users file
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
@@ -178,6 +180,32 @@ class TestAppFactory(unittest.TestCase):
         resp = self.client.get("/firewall")
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b"Firewall", resp.data)
+
+    def test_options_page_requires_login(self):
+        resp = self.client.get("/options")
+        self.assertIn(resp.status_code, (301, 302))
+
+    def test_options_page_after_login(self):
+        self._login()
+        resp = self.client.get("/options")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"Peer View", resp.data)
+        self.assertIn(b'id="peer-perspective-list"', resp.data)
+
+    def test_perspective_toggle_moved_out_of_dashboard_js(self):
+        """Regression test for moving the per-peer "Peer view" toggle off
+        the Dashboard's Throughput cards and onto the Options page: the
+        old per-graph button/badge markup and its click handler must be
+        gone from dashboard.js, and the shared perspective-map helpers
+        must live in options.js instead."""
+        dashboard_js = (
+            _PROJECT_ROOT / "app" / "static" / "js" / "dashboard.js"
+        ).read_text()
+        for stale in ("perspective-toggle-btn", "peer-perspective-badge", "togglePeerPerspective"):
+            self.assertNotIn(stale, dashboard_js)
+
+        options_js = (_PROJECT_ROOT / "app" / "static" / "js" / "options.js").read_text()
+        self.assertIn("peer-perspective-switch", options_js)
 
     def test_api_status_after_login(self):
         self._login()

@@ -40,3 +40,41 @@ function fetchWithCsrf(url, options) {
   options.headers = headers;
   return fetch(url, options);
 }
+
+/**
+ * Shorten a WireGuard public key for display (e.g. in tables/lists),
+ * keeping enough of both ends to stay visually distinguishable.
+ *
+ * @param {string} key
+ * @returns {string}
+ */
+function shortKey(key) {
+  if (!key || key.length <= 16) return key;
+  return key.slice(0, 8) + '…' + key.slice(-8);
+}
+
+/**
+ * Read the shared per-peer RX/TX perspective map from localStorage.
+ * Keyed by peer public_key; a truthy entry means "show this peer's
+ * Throughput chart from its own point of view" (its RX = what it
+ * received = what the server sent) instead of the server's default
+ * point of view. Set from the Options page; read from the dashboard.
+ *
+ * @returns {Object<string, boolean>}
+ */
+function loadPeerPerspectiveMap() {
+  try {
+    return JSON.parse(localStorage.getItem('rxTxPeerPerspective') || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+/**
+ * Persist the per-peer RX/TX perspective map to localStorage.
+ *
+ * @param {Object<string, boolean>} map
+ */
+function savePeerPerspectiveMap(map) {
+  localStorage.setItem('rxTxPeerPerspective', JSON.stringify(map));
+}
