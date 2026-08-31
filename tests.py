@@ -79,6 +79,40 @@ class TestAppVersion(unittest.TestCase):
             self.assertEqual(get_app_version(), "unknown")
 
 
+class TestInstallScript(unittest.TestCase):
+    """install.sh isn't Python, so these are lightweight structural checks
+    rather than behavioral tests: valid syntax, and the two capabilities
+    this script exists for (GitHub token auth, pending-PR selection) are
+    actually present."""
+
+    def setUp(self):
+        self.script_path = _PROJECT_ROOT / "install.sh"
+
+    def test_exists_and_is_executable(self):
+        self.assertTrue(self.script_path.is_file())
+        self.assertTrue(os.access(self.script_path, os.X_OK))
+
+    def test_valid_bash_syntax(self):
+        import subprocess
+
+        result = subprocess.run(
+            ["bash", "-n", str(self.script_path)], capture_output=True, text=True
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_has_github_token_auth_and_pending_pr_selection(self):
+        content = self.script_path.read_text()
+        # Token auth: reads from env, falls back to an interactive prompt.
+        self.assertIn("GH_TOKEN", content)
+        self.assertIn("GITHUB_TOKEN", content)
+        self.assertIn("read -s -p", content)
+        # Pending PR selection: lists open, non-draft PRs and lets the
+        # user pick one as the clone ref instead of main.
+        self.assertIn("pulls?state=open", content)
+        self.assertIn("draft == false", content)
+        self.assertIn("CLONE_REF", content)
+
+
 class TestAppFactory(unittest.TestCase):
     def setUp(self):
         # Remove any leftover temp users file and reset the singleton
