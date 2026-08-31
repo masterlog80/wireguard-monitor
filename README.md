@@ -179,6 +179,10 @@ across the app rather than to a single view. Currently:
 ### Create User
 ![Create User](https://github.com/user-attachments/assets/c6206fae-789f-45bd-8417-7f788198837c)
 
+### Option Page
+<img width="2940" height="1284" alt="image" src="https://github.com/user-attachments/assets/e4037079-6000-4895-9933-34f204857c71" />
+
+
 ---
 
 ## Environment Variables
