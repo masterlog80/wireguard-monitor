@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Options – WireGuard Monitor{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h2 class="mb-0"><i class="bi bi-sliders text-success me-2"></i>Options</h2>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-xl-8">
+    <div class="card border-secondary-subtle">
+      <div class="card-header border-secondary">
+        <span class="fw-semibold"><i class="bi bi-arrow-left-right me-1"></i>Peer View</span>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Each peer's Throughput chart on the Dashboard shows RX/TX from the
+          server's point of view by default — RX is what the server received
+          <em>from</em> that peer, TX is what the server sent <em>to</em> it.
+          Enable "Peer view" below for any peer to show its chart from that
+          peer's own point of view instead (its RX = what it received = what
+          the server sent). This only changes the labeling of the chart on
+          the Dashboard — the underlying data is unaffected.
+        </p>
+        <div id="peer-perspective-list">
+          <p class="text-muted mb-0">Loading peers…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/options.js') }}"></script>
+{% endblock %}
