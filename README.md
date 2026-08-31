@@ -48,6 +48,14 @@ venv/bin/pip install --upgrade pip
 venv/bin/pip install -r requirements.txt
 ```
 
+Or, using `install.sh` (see [Clone & run (development)](#clone--run-development)
+below for what it does — GitHub token auth and pending-PR selection included):
+
+```bash
+sudo REPO=masterlog80/wireguard-monitor DIRNAME=/opt/wireguard-monitor \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/masterlog80/wireguard-monitor/main/install.sh)"
+```
+
 ### 2 — Create the data directory and the credentials
 
 ```bash
@@ -120,6 +128,25 @@ sudo rm -f /etc/wireguard-monitor.env
 ```
 
 ### Clone & run (development)
+
+The fastest way to get a local checkout is `install.sh`, which additionally
+handles GitHub token authentication (this repo is private) and lets you pick
+up an open, not-yet-merged pull request instead of `main`:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/masterlog80/wireguard-monitor/main/install.sh)"
+```
+
+It prompts for a GitHub token (or reads `GH_TOKEN`/`GITHUB_TOKEN` from the
+environment if already set), lists any open PRs so you can choose one, clones
+into `./wireguard-monitor`, and sets up a `venv/` with dependencies installed.
+From there, continue exactly as in the "by hand" steps below, starting from
+`cd wireguard-monitor` (skip the `git clone`/`venv`/`pip install` lines,
+since the script already did those) — export the credentials, then
+`venv/bin/python run.py`. See the comments at the top of the script for the
+environment variables it accepts (`REPO`, `DIRNAME`).
+
+Equivalently, by hand:
 
 ```bash
 git clone https://github.com/masterlog80/wireguard-monitor.git
@@ -288,6 +315,7 @@ python -m pytest tests.py -v
 ├── requirements.txt
 ├── tests.py
 ├── VERSION
+├── install.sh
 ├── wireguard-monitor.service
 └── app/
     ├── __init__.py
