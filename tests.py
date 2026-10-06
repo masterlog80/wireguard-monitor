@@ -241,6 +241,8 @@ class TestAppFactory(unittest.TestCase):
         self.assertIn("draggable", dashboard_js)
         self.assertIn("peer-chart-drag-handle", dashboard_js)
         self.assertIn("Drag graphs to reorder", dashboard_html)
+        self.assertIn("reset-chart-order-btn", dashboard_html)
+        self.assertIn("reset-chart-order-btn", dashboard_js)
 
     def test_perspective_toggle_moved_out_of_dashboard_js(self):
         """Regression test for moving the per-peer "Peer view" toggle off
