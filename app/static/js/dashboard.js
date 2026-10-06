@@ -666,6 +666,12 @@ async function refreshAll() {
 installChartOrdering('throughput-charts-container');
 installChartOrdering('ping-charts-container');
 
+document.getElementById('reset-chart-order-btn').addEventListener('click', () => {
+  localStorage.removeItem(CHART_ORDER_STORAGE_KEYS.throughput);
+  localStorage.removeItem(CHART_ORDER_STORAGE_KEYS.ping);
+  refreshAll();
+});
+
 refreshAll();
 setInterval(refreshAll, 5000);
 
