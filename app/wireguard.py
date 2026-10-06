@@ -173,6 +173,19 @@ def get_peers() -> List[Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
+def _prune_stale_history(active_keys: set[str]) -> None:
+    """Remove throughput and ping history for peers no longer in WireGuard."""
+    with _history_lock:
+        for key in list(_peer_history):
+            if key not in active_keys:
+                del _peer_history[key]
+
+    with _ping_lock:
+        for key in list(_ping_history):
+            if key not in active_keys:
+                del _ping_history[key]
+
+
 def _update_history(peers: List[Dict[str, Any]]) -> None:
     """Record current RX/TX for each peer into the rolling history.
 
@@ -329,6 +342,8 @@ def _poll_loop(interval: float) -> None:
     while not _stop_event.is_set():
         try:
             peers = get_peers()
+            active_keys = {p["public_key"] for p in peers}
+            _prune_stale_history(active_keys)
             _update_history(peers)
             _update_ping_history(peers)
         except Exception:
