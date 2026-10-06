@@ -58,8 +58,6 @@ class TestChartTiming(unittest.TestCase):
         self.assertEqual(history["tx_bps"], [0.0])
 
 
-if __name__ == "__main__":
-    unittest.main()
 
     def test_chart_history_is_sampled_without_shortening_retention(self):
         """Chart output is reduced to the configured point count."""
@@ -69,3 +67,7 @@ if __name__ == "__main__":
         self.assertEqual(len(sampled), 30)
         self.assertEqual(sampled[0], points[0])
         self.assertEqual(sampled[-1], points[-1])
+
+
+if __name__ == "__main__":
+    unittest.main()
