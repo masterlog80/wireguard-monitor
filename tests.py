@@ -423,6 +423,37 @@ peer: PEERPUBKEY1234567890abcdefghijklmnop
         self.assertEqual(len(hist[key]["rx_bps"]), 1)
         self.assertAlmostEqual(hist[key]["rx_bps"][0], 1000.0, delta=10)
 
+    def test_stale_peer_history_is_pruned(self):
+        """Removed peers must disappear from both graph history stores."""
+        from app import wireguard
+        from collections import deque
+
+        active_key = "active_peer"
+        stale_key = "removed_peer"
+
+        with wireguard._history_lock:
+            wireguard._peer_history.clear()
+            wireguard._peer_history[active_key] = deque(maxlen=60)
+            wireguard._peer_history[stale_key] = deque(maxlen=60)
+
+        with wireguard._ping_lock:
+            wireguard._ping_history.clear()
+            wireguard._ping_history[active_key] = deque(maxlen=60)
+            wireguard._ping_history[stale_key] = deque(maxlen=60)
+
+        try:
+            wireguard._prune_stale_history({active_key})
+
+            self.assertIn(active_key, wireguard._peer_history)
+            self.assertNotIn(stale_key, wireguard._peer_history)
+            self.assertIn(active_key, wireguard._ping_history)
+            self.assertNotIn(stale_key, wireguard._ping_history)
+        finally:
+            with wireguard._history_lock:
+                wireguard._peer_history.clear()
+            with wireguard._ping_lock:
+                wireguard._ping_history.clear()
+
     def test_throughput_suppressed_while_disconnected(self):
         """A byte-counter delta spanning a disconnected endpoint should be
         reported as zero, not a real rate.
