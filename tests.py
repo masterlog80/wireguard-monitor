@@ -226,6 +226,22 @@ class TestAppFactory(unittest.TestCase):
         self.assertIn(b"Peer View", resp.data)
         self.assertIn(b'id="peer-perspective-list"', resp.data)
 
+    def test_dashboard_supports_manual_graph_ordering(self):
+        """Throughput and Ping graph order must be draggable and persisted."""
+        dashboard_js = (
+            _PROJECT_ROOT / "app" / "static" / "js" / "dashboard.js"
+        ).read_text()
+        dashboard_html = (
+            _PROJECT_ROOT / "app" / "templates" / "dashboard.html"
+        ).read_text()
+
+        self.assertIn("CHART_ORDER_STORAGE_KEYS", dashboard_js)
+        self.assertIn("installChartOrdering", dashboard_js)
+        self.assertIn("saveChartOrder", dashboard_js)
+        self.assertIn("draggable", dashboard_js)
+        self.assertIn("peer-chart-drag-handle", dashboard_js)
+        self.assertIn("Drag graphs to reorder", dashboard_html)
+
     def test_perspective_toggle_moved_out_of_dashboard_js(self):
         """Regression test for moving the per-peer "Peer view" toggle off
         the Dashboard's Throughput cards and onto the Options page: the
