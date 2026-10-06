@@ -207,6 +207,21 @@ def _update_history(peers: List[Dict[str, Any]], ts: float | None = None) -> Non
             _peer_history[key].append((ts, p["rx_bytes"], p["tx_bytes"], p["connected"]))
 
 
+def _sample_history_points(points: List[tuple], max_points: int) -> List[tuple]:
+    """Reduce chart points while preserving the full history in memory.
+
+    Samples evenly across the available history so charts remain readable
+    without shortening the retained monitoring window.
+    """
+    if len(points) <= max_points:
+        return points
+    if max_points <= 1:
+        return [points[-1]]
+    step = (len(points) - 1) / (max_points - 1)
+    indexes = [round(i * step) for i in range(max_points)]
+    return [points[i] for i in indexes]
+
+
 def get_throughput_history() -> Dict[str, Any]:
     """Return throughput history suitable for Chart.js consumption.
 
@@ -216,7 +231,9 @@ def get_throughput_history() -> Dict[str, Any]:
     with _history_lock:
         result: Dict[str, Any] = {}
         for key, dq in _peer_history.items():
-            points = list(dq)
+            points = _sample_history_points(
+                list(dq), Config.CHART_MAX_POINTS
+            )
             if not points:
                 result[key] = {"labels": [], "rx_bps": [], "tx_bps": []}
                 continue
@@ -306,7 +323,9 @@ def get_ping_history() -> Dict[str, Any]:
     with _ping_lock:
         result: Dict[str, Any] = {}
         for key, dq in _ping_history.items():
-            points = list(dq)
+            points = _sample_history_points(
+                list(dq), Config.CHART_MAX_POINTS
+            )
             labels = []
             latencies = []
             for ts, lat in points:
