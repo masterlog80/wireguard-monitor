@@ -382,6 +382,7 @@ function getOrCreateCard(containerId, key, title) {
     card.innerHTML = `
       <div class="card h-100">
         <div class="card-header py-2 d-flex align-items-center gap-2">
+          <i class="bi bi-grip-vertical peer-chart-drag-handle" title="Drag to reorder" aria-label="Drag to reorder"></i>
           <span class="peer-card-title text-info" title="${escapeHtml(key)}">${escapeHtml(title)}</span>
           <span class="badge bg-secondary peer-offline-badge d-none" title="No recent WireGuard handshake -- not actively probed">Offline</span>
         </div>
