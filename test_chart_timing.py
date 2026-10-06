@@ -60,3 +60,12 @@ class TestChartTiming(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_chart_history_is_sampled_without_shortening_retention(self):
+        """Chart output is reduced to the configured point count."""
+        points = [(float(i), i, i, True) for i in range(60)]
+        sampled = wireguard._sample_history_points(points, 30)
+
+        self.assertEqual(len(sampled), 30)
+        self.assertEqual(sampled[0], points[0])
+        self.assertEqual(sampled[-1], points[-1])
