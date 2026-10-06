@@ -186,9 +186,115 @@ const _throughputCharts = {};  // key -> Chart instance
 const _pingCharts = {};        // key -> Chart instance
 const CHART_HEIGHT_BY_COLUMNS = { 2: 300, 3: 220, 4: 170 };
 const CHART_GRID_CONTAINER_IDS = ['throughput-charts-container', 'ping-charts-container'];
+const CHART_ORDER_STORAGE_KEYS = {
+  throughput: 'chartOrder:throughput',
+  ping: 'chartOrder:ping'
+};
 
 let chartColumns = parseInt(localStorage.getItem('chartColumns'), 10);
 if (![2, 3, 4].includes(chartColumns)) chartColumns = 3;
+
+function chartTypeForContainer(containerId) {
+  return containerId === 'ping-charts-container' ? 'ping' : 'throughput';
+}
+
+function loadChartOrder(type) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(CHART_ORDER_STORAGE_KEYS[type]) || '[]');
+    return Array.isArray(stored) ? stored.filter(key => typeof key === 'string') : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveChartOrder(type, keys) {
+  localStorage.setItem(CHART_ORDER_STORAGE_KEYS[type], JSON.stringify(keys));
+}
+
+function orderChartKeys(type, keys) {
+  const saved = loadChartOrder(type);
+  const active = new Set(keys);
+  const ordered = saved.filter(key => active.has(key));
+  for (const key of keys) {
+    if (!ordered.includes(key)) ordered.push(key);
+  }
+  if (JSON.stringify(ordered) !== JSON.stringify(saved)) saveChartOrder(type, ordered);
+  return ordered;
+}
+
+function reorderChartCards(containerId) {
+  const type = chartTypeForContainer(containerId);
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const row = container.querySelector('.row');
+  if (!row) return;
+
+  const keys = [...row.children]
+    .map(card => card.getAttribute('data-peer-key'))
+    .filter(Boolean);
+  const ordered = orderChartKeys(type, keys);
+  const cards = new Map(
+    [...row.children].map(card => [card.getAttribute('data-peer-key'), card])
+  );
+
+  for (const key of ordered) {
+    const card = cards.get(key);
+    if (card) row.appendChild(card);
+  }
+}
+
+function installChartOrdering(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container || container.dataset.orderingInstalled === 'true') return;
+  container.dataset.orderingInstalled = 'true';
+
+  container.addEventListener('dragstart', (event) => {
+    const card = event.target.closest('[data-peer-key]');
+    if (!card) return;
+    card.classList.add('chart-dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', card.getAttribute('data-peer-key'));
+  });
+
+  container.addEventListener('dragover', (event) => {
+    const card = event.target.closest('[data-peer-key]');
+    if (!card || card.parentElement !== container.querySelector('.row')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  });
+
+  container.addEventListener('drop', (event) => {
+    const target = event.target.closest('[data-peer-key]');
+    if (!target || target.parentElement !== container.querySelector('.row')) return;
+    event.preventDefault();
+
+    const sourceKey = event.dataTransfer.getData('text/plain');
+    const source = container.querySelector(
+      `[data-peer-key="${CSS.escape(sourceKey)}"]`
+    );
+    if (!source || source === target) return;
+
+    const row = target.parentElement;
+    const rect = target.getBoundingClientRect();
+    const insertBefore = event.clientX < rect.left + rect.width / 2;
+    if (insertBefore) row.insertBefore(source, target);
+    else row.insertBefore(source, target.nextSibling);
+
+    const type = chartTypeForContainer(containerId);
+    saveChartOrder(
+      type,
+      [...row.children]
+        .map(card => card.getAttribute('data-peer-key'))
+        .filter(Boolean)
+    );
+  });
+
+  container.addEventListener('dragend', (event) => {
+    const card = event.target.closest('[data-peer-key]');
+    if (card) card.classList.remove('chart-dragging');
+  });
+}
 
 function rowClassForColumns(n) {
   // Always 1 column on phones, 2 on small tablets, and the user's chosen
@@ -293,6 +399,7 @@ function getOrCreateCard(containerId, key, title) {
     }
     row.appendChild(card);
   }
+  card.setAttribute('draggable', 'true');
   updateChartCardOfflineBadge(card, key);
   return card.querySelector('canvas');
 }
@@ -317,7 +424,8 @@ async function refreshThroughput() {
     const resp = await fetch('/api/throughput');
     const data = await resp.json();
 
-    for (const [key, hist] of Object.entries(data)) {
+    for (const key of orderChartKeys('throughput', Object.keys(data))) {
+      const hist = data[key];
       const label = 'Throughput: ' + peerLabel(key);
       const canvas = getOrCreateCard('throughput-charts-container', key, label);
       updateChartCardTitle('throughput-charts-container', key, label);
@@ -369,6 +477,7 @@ async function refreshThroughput() {
         _throughputCharts[key].__lastHist = hist;
       }
     }
+    reorderChartCards('throughput-charts-container');
   } catch (e) {
     console.error('Throughput fetch failed', e);
   }
@@ -379,7 +488,8 @@ async function refreshPing() {
     const resp = await fetch('/api/ping');
     const data = await resp.json();
 
-    for (const [key, hist] of Object.entries(data)) {
+    for (const key of orderChartKeys('ping', Object.keys(data))) {
+      const hist = data[key];
       const label = 'Ping: ' + peerLabel(key);
       const canvas = getOrCreateCard('ping-charts-container', key, label);
       updateChartCardTitle('ping-charts-container', key, label);
@@ -423,6 +533,7 @@ async function refreshPing() {
         });
       }
     }
+    reorderChartCards('ping-charts-container');
   } catch (e) {
     console.error('Ping fetch failed', e);
   }
@@ -550,6 +661,9 @@ async function refreshAll() {
     refreshPing()
   ]);
 }
+
+installChartOrdering('throughput-charts-container');
+installChartOrdering('ping-charts-container');
 
 refreshAll();
 setInterval(refreshAll, 5000);
