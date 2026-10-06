@@ -186,7 +186,7 @@ def _prune_stale_history(active_keys: set[str]) -> None:
                 del _ping_history[key]
 
 
-def _update_history(peers: List[Dict[str, Any]]) -> None:
+def _update_history(peers: List[Dict[str, Any]], ts: float | None = None) -> None:
     """Record current RX/TX for each peer into the rolling history.
 
     Each point also records the peer's connected state at that moment, so
@@ -197,7 +197,8 @@ def _update_history(peers: List[Dict[str, Any]]) -> None:
     delivery is ever confirmed) -- real numbers, but not meaningful as this
     peer's throughput, so the chart shouldn't imply an active connection.
     """
-    ts = time.time()
+    if ts is None:
+        ts = time.time()
     with _history_lock:
         for p in peers:
             key = p["public_key"]
@@ -216,12 +217,12 @@ def get_throughput_history() -> Dict[str, Any]:
         result: Dict[str, Any] = {}
         for key, dq in _peer_history.items():
             points = list(dq)
-            if len(points) < 2:
+            if not points:
                 result[key] = {"labels": [], "rx_bps": [], "tx_bps": []}
                 continue
-            labels = []
-            rx_bps = []
-            tx_bps = []
+            labels = [time.strftime("%H:%M:%S", time.localtime(points[0][0]))]
+            rx_bps = [0.0]
+            tx_bps = [0.0]
             for i in range(1, len(points)):
                 t0, rx0, tx0, connected0 = points[i - 1]
                 t1, rx1, tx1, connected1 = points[i]
@@ -270,7 +271,7 @@ _ping_history: Dict[str, deque] = {}
 _ping_lock = threading.Lock()
 
 
-def _update_ping_history(peers: List[Dict[str, Any]]) -> None:
+def _update_ping_history(peers: List[Dict[str, Any]], ts: float | None = None) -> None:
     """Measure ping for each *connected* peer's first allowed IP.
 
     Peers with no recent handshake are skipped rather than pinged: we
@@ -283,7 +284,8 @@ def _update_ping_history(peers: List[Dict[str, Any]]) -> None:
     simultaneously reporting as Disconnected. A (timestamp, None) gap is
     still recorded so the ping chart's timeline stays continuous.
     """
-    ts = time.time()
+    if ts is None:
+        ts = time.time()
     for p in peers:
         key = p["public_key"]
         latency = None
@@ -344,8 +346,12 @@ def _poll_loop(interval: float) -> None:
             peers = get_peers()
             active_keys = {p["public_key"] for p in peers}
             _prune_stale_history(active_keys)
-            _update_history(peers)
-            _update_ping_history(peers)
+            # Use one timestamp for every history store in this poll cycle.
+            # This keeps the Throughput and Ping x-axes aligned even when
+            # pinging connected peers takes additional time.
+            poll_ts = time.time()
+            _update_history(peers, poll_ts)
+            _update_ping_history(peers, poll_ts)
         except Exception:
             pass
         _stop_event.wait(interval)
