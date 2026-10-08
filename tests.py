@@ -50,6 +50,8 @@ class TestConfig(unittest.TestCase):
         from config import Config
         self.assertIsNotNone(Config.SECRET_KEY)
         self.assertEqual(Config.ADMIN_USERNAME, "admin")
+        self.assertEqual(Config.CHART_MAX_POINTS, 30)
+        self.assertEqual(Config.WG_INTERFACE, "")
 
     def test_csrf_token_has_no_default_time_limit(self):
         """This is a long-running, auto-refreshing dashboard people leave
