@@ -40,12 +40,25 @@ Pick **one** of the following. Both end with the app living at
 
 **Fresh clone:**
 
+The service runs as root from `/opt/wireguard-monitor`, so create the virtual
+environment and install dependencies there with `sudo`. On Ubuntu/Debian,
+install `python3-venv` first; without it, the virtual environment may not be
+created, and systemd will fail to execute the configured Python path.
+
 ```bash
+sudo apt-get update
+sudo apt-get install -y python3-venv
 sudo git clone https://github.com/masterlog80/wireguard-monitor.git /opt/wireguard-monitor
-cd /opt/wireguard-monitor
-python3 -m venv venv
-venv/bin/pip install --upgrade pip
-venv/bin/pip install -r requirements.txt
+sudo python3 -m venv /opt/wireguard-monitor/venv
+sudo /opt/wireguard-monitor/venv/bin/python -m pip install --upgrade pip
+sudo /opt/wireguard-monitor/venv/bin/python -m pip install -r /opt/wireguard-monitor/requirements.txt
+```
+
+**Verify the service's Python environment exists before starting systemd:**
+
+```bash
+test -x /opt/wireguard-monitor/venv/bin/python && echo "Virtual environment OK"
+sudo /opt/wireguard-monitor/venv/bin/python -m pip check
 ```
 
 Or, using `install.sh` (see [Clone & run (development)](#clone--run-development)
@@ -269,6 +282,45 @@ above). Two ways to fix a "can't log in" situation:
   This resets **all** accounts, not just admin — recreate any other users
   afterward from the Users page.
 
+### Troubleshooting: service fails with `203/EXEC`
+
+If `systemctl status wireguard-monitor` shows
+`status=203/EXEC`, systemd could not execute the command in the service's
+`ExecStart` line. This installation expects the interpreter at
+`/opt/wireguard-monitor/venv/bin/python`. A common cause is that the virtual
+environment was never created (for example, because `python3-venv` was not
+installed), or it was removed while updating the application.
+
+Check whether the interpreter exists:
+
+```bash
+ls -l /opt/wireguard-monitor/venv/bin/python
+```
+
+If it is missing, recreate the virtual environment and reinstall the
+requirements. This does not delete the application code or persistent data
+under `/var/lib/wireguard-monitor`:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3-venv
+sudo systemctl stop wireguard-monitor
+sudo python3 -m venv /opt/wireguard-monitor/venv
+sudo /opt/wireguard-monitor/venv/bin/python -m pip install --upgrade pip
+sudo /opt/wireguard-monitor/venv/bin/python -m pip install -r /opt/wireguard-monitor/requirements.txt
+sudo systemctl daemon-reload
+sudo systemctl reset-failed wireguard-monitor
+sudo systemctl start wireguard-monitor
+sudo systemctl status wireguard-monitor --no-pager
+sudo journalctl -u wireguard-monitor -n 50 --no-pager
+```
+
+Do not point `ExecStart` at the system Python as a workaround: the app's
+dependencies are installed in the virtual environment and system Python may
+not have them. If the interpreter exists but the service still fails, inspect
+the journal output for the next error.
+
+---
 ### Common service management commands
 
 | Task | Command |
