@@ -342,7 +342,9 @@ function getChartDefaults() {
     },
     scales: {
       x: {
-        ticks: { color: text, maxTicksLimit: 8, maxRotation: 0 },
+        // Keep timestamp labels readable on narrow chart cards. Chart data points
+        // remain unchanged; only the number of visible x-axis labels is reduced.
+        ticks: { color: text, maxTicksLimit: 4, maxRotation: 0, autoSkip: true },
         grid: { color: grid }
       },
       y: {
