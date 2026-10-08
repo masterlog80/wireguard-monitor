@@ -33,13 +33,7 @@ A Flask-based web application that provides a real-time monitoring dashboard for
 
 A ready-to-use `wireguard-monitor.service` unit file is included.
 
-### 1 — Get the code into a permanent location
-
-Pick **one** of the following. Both end with the app living at
-`/opt/wireguard-monitor`, owned by root, ready for the service to run.
-
-
-**Underlying applications:**
+### 0 — Underlying applications
 
 ```bash
 sudo apt-get update
@@ -48,17 +42,22 @@ sudo apt-get install -y python3-venv
 
 **Verify the service's Python environment exists before starting systemd:**
 
+### 1 — Get the code into a permanent location
+
+Pick **one** of the following. Both end with the app living at
+`/opt/wireguard-monitor`, owned by root, ready for the service to run.
+
+```bash
+test -x /opt/wireguard-monitor/venv/bin/python && echo "Virtual environment OK"
+sudo /opt/wireguard-monitor/venv/bin/python -m pip check
+```
+
 **Fresh clone:**
 
 The service runs as root from `/opt/wireguard-monitor`, so create the virtual
 environment and install dependencies there with `sudo`. On Ubuntu/Debian,
 install `python3-venv` first; without it, the virtual environment may not be
 created, and systemd will fail to execute the configured Python path.
-
-```bash
-test -x /opt/wireguard-monitor/venv/bin/python && echo "Virtual environment OK"
-sudo /opt/wireguard-monitor/venv/bin/python -m pip check
-```
 
 ```bash
 sudo git clone https://github.com/masterlog80/wireguard-monitor.git /opt/wireguard-monitor
