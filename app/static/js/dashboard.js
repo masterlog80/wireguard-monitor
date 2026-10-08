@@ -297,6 +297,20 @@ function getOrCreateCard(containerId, key, title) {
   return card.querySelector('canvas');
 }
 
+function removeStaleChartCards(chartMap, containerId, activeKeys) {
+  for (const key of Object.keys(chartMap)) {
+    if (activeKeys.has(key)) continue;
+
+    chartMap[key].destroy();
+    delete chartMap[key];
+
+    const card = document.querySelector(
+      `#${containerId} [data-peer-key="${CSS.escape(key)}"]`
+    );
+    if (card) card.remove();
+  }
+}
+
 function updateChartCardOfflineBadge(cardEl, key) {
   const badge = cardEl.querySelector('.peer-offline-badge');
   if (!badge) return;
@@ -316,6 +330,11 @@ async function refreshThroughput() {
   try {
     const resp = await fetch('/api/throughput');
     const data = await resp.json();
+    removeStaleChartCards(
+      _throughputCharts,
+      'throughput-charts-container',
+      new Set(Object.keys(data))
+    );
 
     for (const [key, hist] of Object.entries(data)) {
       const label = 'Throughput: ' + peerLabel(key);
@@ -378,6 +397,11 @@ async function refreshPing() {
   try {
     const resp = await fetch('/api/ping');
     const data = await resp.json();
+    removeStaleChartCards(
+      _pingCharts,
+      'ping-charts-container',
+      new Set(Object.keys(data))
+    );
 
     for (const [key, hist] of Object.entries(data)) {
       const label = 'Ping: ' + peerLabel(key);

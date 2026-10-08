@@ -173,7 +173,20 @@ def get_peers() -> List[Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def _update_history(peers: List[Dict[str, Any]]) -> None:
+def _prune_stale_history(active_keys: set[str]) -> None:
+    """Remove throughput and ping history for peers no longer in WireGuard."""
+    with _history_lock:
+        for key in list(_peer_history):
+            if key not in active_keys:
+                del _peer_history[key]
+
+    with _ping_lock:
+        for key in list(_ping_history):
+            if key not in active_keys:
+                del _ping_history[key]
+
+
+def _update_history(peers: List[Dict[str, Any]], ts: float | None = None) -> None:
     """Record current RX/TX for each peer into the rolling history.
 
     Each point also records the peer's connected state at that moment, so
@@ -184,13 +197,29 @@ def _update_history(peers: List[Dict[str, Any]]) -> None:
     delivery is ever confirmed) -- real numbers, but not meaningful as this
     peer's throughput, so the chart shouldn't imply an active connection.
     """
-    ts = time.time()
+    if ts is None:
+        ts = time.time()
     with _history_lock:
         for p in peers:
             key = p["public_key"]
             if key not in _peer_history:
                 _peer_history[key] = deque(maxlen=Config.MAX_HISTORY)
             _peer_history[key].append((ts, p["rx_bytes"], p["tx_bytes"], p["connected"]))
+
+
+def _sample_history_points(points: List[tuple], max_points: int) -> List[tuple]:
+    """Reduce chart points while preserving the full history in memory.
+
+    Samples evenly across the available history so charts remain readable
+    without shortening the retained monitoring window.
+    """
+    if len(points) <= max_points:
+        return points
+    if max_points <= 1:
+        return [points[-1]]
+    step = (len(points) - 1) / (max_points - 1)
+    indexes = [round(i * step) for i in range(max_points)]
+    return [points[i] for i in indexes]
 
 
 def get_throughput_history() -> Dict[str, Any]:
@@ -202,13 +231,15 @@ def get_throughput_history() -> Dict[str, Any]:
     with _history_lock:
         result: Dict[str, Any] = {}
         for key, dq in _peer_history.items():
-            points = list(dq)
-            if len(points) < 2:
+            points = _sample_history_points(
+                list(dq), Config.CHART_MAX_POINTS
+            )
+            if not points:
                 result[key] = {"labels": [], "rx_bps": [], "tx_bps": []}
                 continue
-            labels = []
-            rx_bps = []
-            tx_bps = []
+            labels = [time.strftime("%H:%M:%S", time.localtime(points[0][0]))]
+            rx_bps = [0.0]
+            tx_bps = [0.0]
             for i in range(1, len(points)):
                 t0, rx0, tx0, connected0 = points[i - 1]
                 t1, rx1, tx1, connected1 = points[i]
@@ -257,7 +288,7 @@ _ping_history: Dict[str, deque] = {}
 _ping_lock = threading.Lock()
 
 
-def _update_ping_history(peers: List[Dict[str, Any]]) -> None:
+def _update_ping_history(peers: List[Dict[str, Any]], ts: float | None = None) -> None:
     """Measure ping for each *connected* peer's first allowed IP.
 
     Peers with no recent handshake are skipped rather than pinged: we
@@ -270,7 +301,8 @@ def _update_ping_history(peers: List[Dict[str, Any]]) -> None:
     simultaneously reporting as Disconnected. A (timestamp, None) gap is
     still recorded so the ping chart's timeline stays continuous.
     """
-    ts = time.time()
+    if ts is None:
+        ts = time.time()
     for p in peers:
         key = p["public_key"]
         latency = None
@@ -291,7 +323,9 @@ def get_ping_history() -> Dict[str, Any]:
     with _ping_lock:
         result: Dict[str, Any] = {}
         for key, dq in _ping_history.items():
-            points = list(dq)
+            points = _sample_history_points(
+                list(dq), Config.CHART_MAX_POINTS
+            )
             labels = []
             latencies = []
             for ts, lat in points:
@@ -329,8 +363,14 @@ def _poll_loop(interval: float) -> None:
     while not _stop_event.is_set():
         try:
             peers = get_peers()
-            _update_history(peers)
-            _update_ping_history(peers)
+            active_keys = {p["public_key"] for p in peers}
+            _prune_stale_history(active_keys)
+            # Use one timestamp for every history store in this poll cycle.
+            # This keeps the Throughput and Ping x-axes aligned even when
+            # pinging connected peers takes additional time.
+            poll_ts = time.time()
+            _update_history(peers, poll_ts)
+            _update_ping_history(peers, poll_ts)
         except Exception:
             pass
         _stop_event.wait(interval)
