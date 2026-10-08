@@ -38,6 +38,16 @@ A ready-to-use `wireguard-monitor.service` unit file is included.
 Pick **one** of the following. Both end with the app living at
 `/opt/wireguard-monitor`, owned by root, ready for the service to run.
 
+
+**Underlying applications:**
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3-venv
+```
+
+**Verify the service's Python environment exists before starting systemd:**
+
 **Fresh clone:**
 
 The service runs as root from `/opt/wireguard-monitor`, so create the virtual
@@ -46,19 +56,15 @@ install `python3-venv` first; without it, the virtual environment may not be
 created, and systemd will fail to execute the configured Python path.
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y python3-venv
+test -x /opt/wireguard-monitor/venv/bin/python && echo "Virtual environment OK"
+sudo /opt/wireguard-monitor/venv/bin/python -m pip check
+```
+
+```bash
 sudo git clone https://github.com/masterlog80/wireguard-monitor.git /opt/wireguard-monitor
 sudo python3 -m venv /opt/wireguard-monitor/venv
 sudo /opt/wireguard-monitor/venv/bin/python -m pip install --upgrade pip
 sudo /opt/wireguard-monitor/venv/bin/python -m pip install -r /opt/wireguard-monitor/requirements.txt
-```
-
-**Verify the service's Python environment exists before starting systemd:**
-
-```bash
-test -x /opt/wireguard-monitor/venv/bin/python && echo "Virtual environment OK"
-sudo /opt/wireguard-monitor/venv/bin/python -m pip check
 ```
 
 Or, using `install.sh` (see [Clone & run (development)](#clone--run-development)
