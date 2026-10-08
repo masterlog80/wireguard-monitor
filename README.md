@@ -54,24 +54,32 @@ Pick **one** of the following. Both end with the app living at
 
 **Fresh clone:**
 
+This repository is private, so an unauthenticated HTTPS clone (or fetching
+`install.sh` from `raw.githubusercontent.com`) will fail unless you have
+configured GitHub authentication for that command. Clone using the GitHub
+authentication method you already use (for example, SSH or a configured Git
+credential helper), as your normal user first:
+
+```bash
+git clone https://github.com/masterlog80/wireguard-monitor.git
+sudo mv wireguard-monitor /opt/wireguard-monitor
+```
+
+If you use SSH authentication instead, use the repository's SSH clone URL.
+Avoid running the clone under `sudo` when your GitHub credentials are only
+configured for your normal user.
+
 The service runs as root from `/opt/wireguard-monitor`, so create the virtual
 environment and install dependencies there with `sudo`. On Ubuntu/Debian,
 install `python3-venv` first; without it, the virtual environment may not be
 created, and systemd will fail to execute the configured Python path.
 
 ```bash
-sudo git clone https://github.com/masterlog80/wireguard-monitor.git /opt/wireguard-monitor
+sudo apt-get update
+sudo apt-get install -y python3-venv
 sudo python3 -m venv /opt/wireguard-monitor/venv
 sudo /opt/wireguard-monitor/venv/bin/python -m pip install --upgrade pip
 sudo /opt/wireguard-monitor/venv/bin/python -m pip install -r /opt/wireguard-monitor/requirements.txt
-```
-
-Or, using `install.sh` (see [Clone & run (development)](#clone--run-development)
-below for what it does — GitHub token auth and pending-PR selection included):
-
-```bash
-sudo REPO=masterlog80/wireguard-monitor DIRNAME=/opt/wireguard-monitor \
-  bash -c "$(curl -fsSL https://raw.githubusercontent.com/masterlog80/wireguard-monitor/main/install.sh)"
 ```
 
 ### 2 — Create the data directory and the credentials
@@ -147,21 +155,16 @@ sudo rm -f /etc/wireguard-monitor.env
 
 ### Clone & run (development)
 
-The fastest way to get a local checkout is `install.sh`, which additionally
-handles GitHub token authentication (this repo is private) and lets you pick
-up an open, not-yet-merged pull request instead of `main`:
+Because this repository is private, the unauthenticated `curl` bootstrap
+command cannot reliably download `install.sh` from `raw.githubusercontent.com`.
+First clone the repository using your configured GitHub authentication, then
+run the script from that checkout if you want its pending-PR selection flow.
+For a normal development checkout, the manual steps below are simpler.
 
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/masterlog80/wireguard-monitor/main/install.sh)"
-```
-
-It prompts for a GitHub token (or reads `GH_TOKEN`/`GITHUB_TOKEN` from the
-environment if already set), lists any open PRs so you can choose one, clones
-into `./wireguard-monitor`, and sets up a `venv/` with dependencies installed.
-From there, continue exactly as in the "by hand" steps below, starting from
-`cd wireguard-monitor` (skip the `git clone`/`venv`/`pip install` lines,
-since the script already did those) — export the credentials, then
-`venv/bin/python run.py`. See the comments at the top of the script for the
+The script prompts for a GitHub token (or reads `GH_TOKEN`/`GITHUB_TOKEN` from
+the environment if already set), lists open non-draft PRs so you can choose
+one, clones into the requested directory, and sets up a `venv/` with
+dependencies installed. See the comments at the top of `install.sh` for the
 environment variables it accepts (`REPO`, `DIRNAME`).
 
 Equivalently, by hand:
