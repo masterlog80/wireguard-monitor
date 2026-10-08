@@ -42,15 +42,15 @@ sudo apt-get install -y python3-venv
 
 **Verify the service's Python environment exists before starting systemd:**
 
-### 1 — Get the code into a permanent location
-
-Pick **one** of the following. Both end with the app living at
-`/opt/wireguard-monitor`, owned by root, ready for the service to run.
-
 ```bash
 test -x /opt/wireguard-monitor/venv/bin/python && echo "Virtual environment OK"
 sudo /opt/wireguard-monitor/venv/bin/python -m pip check
 ```
+
+### 1 — Get the code into a permanent location
+
+Pick **one** of the following. Both end with the app living at
+`/opt/wireguard-monitor`, owned by root, ready for the service to run.
 
 **Fresh clone:**
 
