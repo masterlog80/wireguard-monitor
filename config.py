@@ -17,7 +17,10 @@ class Config:
     ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")
     # How many historical data-points to keep per peer (5s interval × 60 = 5 min)
     MAX_HISTORY = int(os.environ.get("MAX_HISTORY", 60))
-    # Maximum number of points returned to the dashboard per graph. The full\n    # MAX_HISTORY remains retained in memory; this only reduces chart density.\n    CHART_MAX_POINTS = int(os.environ.get("CHART_MAX_POINTS", 30))\n    # WireGuard interface (leave empty to auto-detect)
+    # Maximum number of points returned to the dashboard per graph. The full
+    # MAX_HISTORY remains retained in memory; this only reduces chart density.
+    CHART_MAX_POINTS = int(os.environ.get("CHART_MAX_POINTS", 30))
+    # WireGuard interface (leave empty to auto-detect)
     WG_INTERFACE = os.environ.get("WG_INTERFACE", "")
     # Path to the JSON file used to persist user accounts with hashed passwords
     USERS_FILE = os.environ.get("USERS_FILE", "users.json")
