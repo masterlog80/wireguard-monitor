@@ -1,8 +1,6 @@
 /* Custom styles for WireGuard Monitor */
 
-/* GitHub-dark-inspired palette, applied only in dark mode. Light mode uses
-   Bootstrap's stock light theme so form controls, cards, and text stay
-   properly contrasted without needing a parallel set of overrides. */
+/* GitHub-dark-inspired palette, applied only in dark mode. */
 [data-bs-theme="dark"] body {
   background-color: #0d1117;
   color: #c9d1d9;
@@ -18,11 +16,8 @@
   border-bottom-color: #30363d;
 }
 
-pre {
-  max-height: 400px;
-}
+pre { max-height: 400px; }
 
-/* Status indicator dots */
 .status-dot {
   display: inline-block;
   width: 10px;
@@ -30,103 +25,27 @@ pre {
   border-radius: 50%;
   margin-right: 6px;
 }
-
 .status-dot.connected {
   background-color: #2ea043;
   box-shadow: 0 0 6px #2ea043;
 }
-
 .status-dot.disconnected {
   background-color: #da3633;
   box-shadow: 0 0 6px #da3633;
 }
+.chart-wrapper { position: relative; height: var(--chart-h, 220px); }
+.peer-card-title { font-size: .8rem; word-break: break-all; }
 
-/* Chart containers */
-.chart-wrapper {
-  position: relative;
-  height: var(--chart-h, 220px);
-}
-
-.peer-card-title {
-  font-size: 0.8rem;
-  word-break: break-all;
-}
-
-
-/* Shared dashboard shell and bottom status bar, inspired by modem-dashboard. */
-html {
-  min-height: 100%;
-}
-
+html { min-height: 100%; }
 body {
   min-height: 100vh;
+  margin: 0;
   display: flex;
   flex-direction: column;
+  background: var(--wm-page);
+  color: var(--wm-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
-
-body > .container-fluid.py-3 {
-  flex: 1 0 auto;
-  width: 100%;
-}
-
-.app-footer {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.65rem 1.25rem;
-  padding: 0.8rem 1.25rem;
-  border-top: 1px solid var(--bs-border-color);
-  background: var(--bs-tertiary-bg);
-  color: var(--bs-secondary-color);
-  font-size: 0.8rem;
-}
-
-.app-footer-brand,
-.app-footer-started,
-.app-footer-version {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.app-footer-brand {
-  color: var(--bs-body-color);
-  font-weight: 600;
-}
-
-.app-footer-version {
-  padding: 0.2rem 0.55rem;
-  border: 1px solid var(--bs-border-color);
-  border-radius: 999px;
-  white-space: nowrap;
-}
-
-.app-footer .status-dot {
-  width: 7px;
-  height: 7px;
-  margin-right: 0;
-}
-
-@media (max-width: 575.98px) {
-  .app-footer {
-    justify-content: flex-start;
-    padding: 0.75rem 1rem;
-  }
-
-  .app-footer-started {
-    flex-basis: 100%;
-    order: 3;
-  }
-
-  .app-footer-version {
-    margin-left: auto;
-  }
-}
-
-
-/* Modem-dashboard-inspired visual system */
 :root {
   --accent: #6366f1;
   --accent-light: #818cf8;
@@ -156,24 +75,23 @@ body > .container-fluid.py-3 {
   --wm-muted: #64748b;
   --wm-header: rgba(255,255,255,.92);
 }
-html, body {
-  min-height: 100%;
-  margin: 0;
-  background: var(--wm-page);
-  color: var(--wm-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
-body { min-height: 100vh; display: flex; flex-direction: column; }
 .dash-header {
-  position: sticky; top: 0; z-index: 100;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   background: var(--wm-header);
   border-bottom: 1px solid var(--wm-border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 .dash-header-inner {
-  max-width: 1600px; min-height: 66px; margin: 0 auto;
-  padding: .6rem 1.25rem; display: flex; align-items: center; gap: 1.25rem;
+  max-width: 1600px;
+  min-height: 66px;
+  margin: 0 auto;
+  padding: .6rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
 }
 .brand { display: flex; align-items: center; gap: .75rem; color: var(--wm-text); flex-shrink: 0; }
 .brand:hover { color: var(--wm-text); }
@@ -222,15 +140,76 @@ body > .container-fluid.py-3 { flex: 1 0 auto; width: 100%; max-width: 1640px; p
 .card-body { padding: 1rem; }
 .table { --bs-table-bg: transparent; }
 .table > :not(caption) > * > * { padding: .7rem .8rem; }
+
+/* Footer styled to match the supplied reference: brand, start time, version. */
 .app-footer {
-  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
-  gap: .65rem 1.25rem; padding: .8rem 1.25rem; border-top: 1px solid var(--wm-border);
-  background: var(--wm-surface); color: var(--wm-muted); font-size: .78rem;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: .65rem 1.25rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(255,255,255,.09);
+  background: #1c2330;
+  color: #8b96a6;
+  font-size: .8rem;
+  min-height: 68px;
 }
-.app-footer-brand, .app-footer-started, .app-footer-version { display: inline-flex; align-items: center; gap: .45rem; }
-.app-footer-brand { color: var(--wm-text); font-weight: 650; }
-.app-footer-version { padding: .2rem .55rem; border: 1px solid var(--wm-border); border-radius: 999px; white-space: nowrap; }
-.app-footer .status-dot { width: 7px; height: 7px; margin: 0; }
+[data-bs-theme="light"] .app-footer {
+  background: #1c2330;
+  color: #8b96a6;
+  border-top-color: rgba(255,255,255,.09);
+}
+.app-footer-brand, .app-footer-started, .app-footer-version {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+}
+.app-footer-brand {
+  order: 0;
+  color: #e2e8f0;
+  font-size: .95rem;
+  font-weight: 700;
+  padding-right: 1.25rem;
+  border-right: 1px solid rgba(148,163,184,.2);
+  white-space: nowrap;
+}
+.app-footer-brand i { color: #22c55e !important; font-size: 1.05rem; }
+.app-footer-started {
+  order: 1;
+  color: #8b96a6;
+  font-size: .9rem;
+  white-space: nowrap;
+}
+.app-footer-started i { font-size: 1rem; }
+.app-footer-version {
+  order: 2;
+  margin-left: auto;
+  padding: .45rem .9rem;
+  border: 1px solid rgba(255,255,255,.045);
+  border-radius: 999px;
+  background: rgba(255,255,255,.055);
+  color: #e2e8f0;
+  font-size: .9rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.app-footer .status-dot { width: 8px; height: 8px; margin: 0; }
+.app-footer .status-dot.connected { background: #22c55e; box-shadow: 0 0 7px rgba(34,197,94,.55); }
+
+.refresh-interval-control {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: 0 .45rem; height: 32px; border: 1px solid var(--wm-border);
+  border-radius: 8px; color: var(--wm-muted); background: transparent;
+}
+.refresh-interval-control select {
+  width: 3.25rem; padding: 0; border: 0; outline: 0; box-shadow: none;
+  background: transparent; color: var(--wm-text); font-size: .75rem; cursor: pointer;
+}
+.refresh-interval-control select:focus { box-shadow: none; }
+.refresh-interval-control option { background: var(--wm-surface); color: var(--wm-text); }
+
 @media (max-width: 1100px) {
   .dash-header-inner { flex-wrap: wrap; gap: .6rem 1rem; }
   .primary-nav { order: 3; width: 100%; margin: 0; overflow-x: auto; }
@@ -246,34 +225,8 @@ body > .container-fluid.py-3 { flex: 1 0 auto; width: 100%; max-width: 1640px; p
   .status-pill .status-label { display: none; }
   .header-user { display: none; }
   body > .container-fluid.py-3 { padding: .8rem !important; }
-  .app-footer { justify-content: flex-start; padding: .75rem 1rem; }
-  .app-footer-started { flex-basis: 100%; order: 3; }
-  .app-footer-version { margin-left: auto; }
-}
-
-
-/* Footer order mirrors modem-dashboard: startup time on the left, app/version at right. */
-.app-footer { justify-content: flex-start; }
-.app-footer-started { order: 0; margin-right: 0; }
-.app-footer-brand { order: 1; }
-.app-footer-version { order: 2; margin-left: auto; }
-
-.refresh-interval-control {
-  display: inline-flex; align-items: center; gap: .35rem;
-  padding: 0 .45rem; height: 32px; border: 1px solid var(--wm-border);
-  border-radius: 8px; color: var(--wm-muted); background: transparent;
-}
-.refresh-interval-control select {
-  width: 3.25rem; padding: 0; border: 0; outline: 0; box-shadow: none;
-  background: transparent; color: var(--wm-text); font-size: .75rem;
-  cursor: pointer;
-}
-.refresh-interval-control select:focus { box-shadow: none; }
-.refresh-interval-control option { background: var(--wm-surface); color: var(--wm-text); }
-@media (max-width: 575.98px) {
-  .app-footer-started { flex-basis: auto; order: 0; margin-right: 0; }
-  .app-footer-brand { display: inline-flex; order: 1; }
-  .app-footer-brand { display: none; }
-  .app-footer-version { order: 1; margin-left: 0; }
-  .refresh-interval-control { gap: .2rem; padding: 0 .3rem; }
+  .app-footer { gap: .6rem; padding: .8rem 1rem; }
+  .app-footer-brand { padding-right: .7rem; font-size: .85rem; }
+  .app-footer-started { white-space: normal; font-size: .78rem; }
+  .app-footer-version { margin-left: auto; padding: .35rem .6rem; font-size: .8rem; }
 }
