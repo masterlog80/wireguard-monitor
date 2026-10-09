@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 
 from flask import Flask, flash, jsonify, redirect, request, url_for
 from flask_login import LoginManager
@@ -37,6 +38,9 @@ def create_app() -> Flask:
     app.config.from_object(Config)
     app.config["VERSION"] = get_app_version()
     app.jinja_env.globals["app_version"] = app.config["VERSION"]
+    # Display the process start time in the shared UI footer, using server-local
+    # time so it matches the host's operational conventions.
+    app.jinja_env.globals["app_start_time"] = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
 
     # --- CSRF protection for all state-changing requests (forms + JSON APIs) ---
     csrf.init_app(app)
