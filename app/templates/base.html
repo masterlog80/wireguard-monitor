@@ -35,7 +35,13 @@
     </nav>
     <div class="header-controls">
       <div class="status-pill status-connected" id="header-status-pill"><span class="status-dot"></span><span class="status-label">Monitoring</span></div>
-      <div class="refresh-ring" title="Refresh indicator"><svg viewBox="0 0 36 36" class="ring-svg" aria-hidden="true"><circle class="ring-bg" cx="18" cy="18" r="15"></circle><circle id="header-ring-progress" class="ring-fg" cx="18" cy="18" r="15" stroke-dasharray="94.25 94.25" stroke-dashoffset="0"></circle></svg><span id="header-countdown" class="ring-label">5</span></div>
+      <label class="refresh-interval-control" title="Automatic dashboard refresh interval">
+        <i class="bi bi-arrow-repeat"></i>
+        <select id="refresh-interval-select" aria-label="Refresh interval">
+          <option value="5">5 s</option><option value="10">10 s</option><option value="15">15 s</option><option value="30">30 s</option><option value="60">60 s</option>
+        </select>
+      </label>
+      <div class="refresh-ring" title="Time until next refresh"><svg viewBox="0 0 36 36" class="ring-svg" aria-hidden="true"><circle class="ring-bg" cx="18" cy="18" r="15"></circle><circle id="header-ring-progress" class="ring-fg" cx="18" cy="18" r="15" stroke-dasharray="94.25 94.25" stroke-dashoffset="0"></circle></svg><span id="header-countdown" class="ring-label">5</span></div>
       <button type="button" id="header-refresh-btn" class="icon-btn" title="Refresh now" aria-label="Refresh now"><i class="bi bi-arrow-clockwise"></i></button>
       <button type="button" id="theme-toggle-btn" class="icon-btn" title="Toggle light/dark mode" aria-label="Toggle light/dark mode"><i class="bi" id="theme-toggle-icon"></i></button>
       {% if current_user.is_authenticated %}<span class="header-user"><i class="bi bi-person-circle"></i><span>{{ current_user.username }}</span></span>{% endif %}
@@ -58,19 +64,16 @@
 </div>
 
 <footer class="app-footer">
-  <div class="app-footer-brand">
-    <i class="bi bi-shield-lock-fill text-success"></i>
-    <span>WireGuard Monitor</span>
-  </div>
   <div class="app-footer-started" title="Application process start time">
-    <i class="bi bi-clock"></i>
-    <span>Started <time>{{ app_start_time }}</time></span>
+    <i class="bi bi-clock"></i><span>Started <time>{{ app_start_time }}</time></span>
+  </div>
+  <div class="app-footer-brand">
+    <i class="bi bi-shield-lock-fill text-success"></i><span>WireGuard Monitor</span>
   </div>
   <div class="app-footer-version" title="Application version">
     <span class="status-dot connected"></span>v{{ app_version }}
   </div>
 </footer>
-
 <script>
   // CSRF token for JS-issued fetch() calls to state-changing endpoints
   // (POST/PUT/PATCH/DELETE). Read by the helper in app.js.
@@ -80,21 +83,40 @@
 <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/chart.js/chart.umd.min.js') }}"></script>
 <script>
-  // Header refresh controls (the dashboard itself continues polling every 5 seconds).
+  // The dashboard exposes refreshAll(); the selected interval is persisted per browser.
   (function () {
-    var remaining = 5;
+    var select = document.getElementById('refresh-interval-select');
     var label = document.getElementById('header-countdown');
     var ring = document.getElementById('header-ring-progress');
-    document.getElementById('header-refresh-btn').addEventListener('click', function () {
+    var refresh = document.getElementById('header-refresh-btn');
+    var allowed = [5, 10, 15, 30, 60];
+    var stored = Number(localStorage.getItem('dashboardRefreshSeconds') || 5);
+    var intervalSeconds = allowed.indexOf(stored) >= 0 ? stored : 5;
+    var remaining = intervalSeconds;
+    var circumference = 94.25;
+    select.value = String(intervalSeconds);
+    function updateRing() {
+      label.textContent = String(remaining);
+      ring.style.strokeDashoffset = String(circumference * (1 - remaining / intervalSeconds));
+    }
+    select.addEventListener('change', function () {
+      intervalSeconds = Number(select.value);
+      localStorage.setItem('dashboardRefreshSeconds', String(intervalSeconds));
+      remaining = intervalSeconds;
+      updateRing();
+      document.dispatchEvent(new CustomEvent('refreshintervalchange', { detail: { seconds: intervalSeconds } }));
+    });
+    refresh.addEventListener('click', function () {
       if (typeof window.refreshAll === 'function') window.refreshAll();
-      else window.location.reload();
-      remaining = 5;
+      remaining = intervalSeconds;
+      updateRing();
     });
     window.setInterval(function () {
-      remaining = remaining <= 1 ? 5 : remaining - 1;
-      label.textContent = String(remaining);
-      ring.style.strokeDashoffset = String(94.25 * (1 - remaining / 5));
+      remaining = remaining <= 1 ? intervalSeconds : remaining - 1;
+      updateRing();
+      if (remaining === intervalSeconds && typeof window.refreshAll === 'function') window.refreshAll();
     }, 1000);
+    updateRing();
   })();
 
   // ── Light/Dark mode toggle ────────────────────────────────────────────
