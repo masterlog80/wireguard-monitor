@@ -51,3 +51,76 @@ pre {
   font-size: 0.8rem;
   word-break: break-all;
 }
+
+
+/* Shared dashboard shell and bottom status bar, inspired by modem-dashboard. */
+html {
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+body > .container-fluid.py-3 {
+  flex: 1 0 auto;
+  width: 100%;
+}
+
+.app-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.25rem;
+  padding: 0.8rem 1.25rem;
+  border-top: 1px solid var(--bs-border-color);
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-secondary-color);
+  font-size: 0.8rem;
+}
+
+.app-footer-brand,
+.app-footer-started,
+.app-footer-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.app-footer-brand {
+  color: var(--bs-body-color);
+  font-weight: 600;
+}
+
+.app-footer-version {
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.app-footer .status-dot {
+  width: 7px;
+  height: 7px;
+  margin-right: 0;
+}
+
+@media (max-width: 575.98px) {
+  .app-footer {
+    justify-content: flex-start;
+    padding: 0.75rem 1rem;
+  }
+
+  .app-footer-started {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .app-footer-version {
+    margin-left: auto;
+  }
+}
