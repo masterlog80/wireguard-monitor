@@ -124,3 +124,129 @@ body > .container-fluid.py-3 {
     margin-left: auto;
   }
 }
+
+
+/* Modem-dashboard-inspired visual system */
+:root {
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --accent-glow: rgba(99, 102, 241, .24);
+  --wm-green: #22c55e;
+  --wm-border-dark: rgba(255,255,255,.085);
+  --wm-radius: 12px;
+  --wm-transition: .2s ease;
+}
+[data-bs-theme="dark"] {
+  --wm-page: #0d0f14;
+  --wm-surface: #161922;
+  --wm-surface-alt: #1c2030;
+  --wm-hover: #222638;
+  --wm-border: rgba(255,255,255,.08);
+  --wm-text: #e2e8f0;
+  --wm-muted: #8490a3;
+  --wm-header: rgba(13,15,20,.9);
+}
+[data-bs-theme="light"] {
+  --wm-page: #f1f5f9;
+  --wm-surface: #fff;
+  --wm-surface-alt: #f8fafc;
+  --wm-hover: #f1f5f9;
+  --wm-border: rgba(0,0,0,.09);
+  --wm-text: #0f172a;
+  --wm-muted: #64748b;
+  --wm-header: rgba(255,255,255,.92);
+}
+html, body {
+  min-height: 100%;
+  margin: 0;
+  background: var(--wm-page);
+  color: var(--wm-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+body { min-height: 100vh; display: flex; flex-direction: column; }
+.dash-header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--wm-header);
+  border-bottom: 1px solid var(--wm-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.dash-header-inner {
+  max-width: 1600px; min-height: 66px; margin: 0 auto;
+  padding: .6rem 1.25rem; display: flex; align-items: center; gap: 1.25rem;
+}
+.brand { display: flex; align-items: center; gap: .75rem; color: var(--wm-text); flex-shrink: 0; }
+.brand:hover { color: var(--wm-text); }
+.brand-icon {
+  width: 38px; height: 38px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem; color: #fff; box-shadow: 0 0 16px var(--accent-glow);
+}
+.brand-title { font-size: 1rem; line-height: 1.2; font-weight: 750; letter-spacing: -.015em; }
+.brand-sub { color: var(--wm-muted); font-size: .62rem; letter-spacing: .095em; margin-top: .18rem; }
+.primary-nav { display: flex; align-items: center; gap: .2rem; margin-left: .5rem; }
+.primary-nav-link {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .52rem .72rem; border-radius: 8px; text-decoration: none;
+  color: var(--wm-muted); font-size: .84rem; font-weight: 550;
+  transition: color var(--wm-transition), background var(--wm-transition);
+}
+.primary-nav-link:hover { color: var(--wm-text); background: var(--wm-hover); }
+.primary-nav-link.active { color: var(--accent-light); background: var(--accent-glow); }
+.header-controls { margin-left: auto; display: flex; align-items: center; gap: .55rem; }
+.status-pill {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .3rem .7rem; border-radius: 999px; font-size: .75rem; font-weight: 650;
+  white-space: nowrap; background: rgba(34,197,94,.10); border: 1px solid rgba(34,197,94,.25); color: var(--wm-green);
+}
+.status-pill .status-dot { width: 7px; height: 7px; margin: 0; background: var(--wm-green); box-shadow: 0 0 5px var(--wm-green); }
+.refresh-ring { position: relative; width: 32px; height: 32px; flex-shrink: 0; }
+.ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: var(--wm-border); stroke-width: 3; }
+.ring-fg { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset .9s linear; }
+.ring-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: .65rem; font-weight: 700; color: var(--wm-muted); font-variant-numeric: tabular-nums; }
+.icon-btn {
+  width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--wm-border); border-radius: 8px; background: transparent;
+  color: var(--wm-muted); text-decoration: none; cursor: pointer; font-size: .95rem;
+  transition: all var(--wm-transition);
+}
+.icon-btn:hover { background: var(--wm-hover); color: var(--wm-text); border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+.header-user { display: inline-flex; align-items: center; gap: .4rem; color: var(--wm-muted); font-size: .8rem; white-space: nowrap; }
+body > .container-fluid.py-3 { flex: 1 0 auto; width: 100%; max-width: 1640px; padding: 1.25rem !important; }
+.card, .modal-content { border-radius: var(--wm-radius); overflow: hidden; }
+.card { box-shadow: 0 2px 10px rgba(0,0,0,.035); transition: border-color var(--wm-transition), box-shadow var(--wm-transition); }
+.card:hover { border-color: rgba(99,102,241,.25); }
+.card-header { padding: .8rem 1rem; font-size: .9rem; }
+.card-body { padding: 1rem; }
+.table { --bs-table-bg: transparent; }
+.table > :not(caption) > * > * { padding: .7rem .8rem; }
+.app-footer {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: .65rem 1.25rem; padding: .8rem 1.25rem; border-top: 1px solid var(--wm-border);
+  background: var(--wm-surface); color: var(--wm-muted); font-size: .78rem;
+}
+.app-footer-brand, .app-footer-started, .app-footer-version { display: inline-flex; align-items: center; gap: .45rem; }
+.app-footer-brand { color: var(--wm-text); font-weight: 650; }
+.app-footer-version { padding: .2rem .55rem; border: 1px solid var(--wm-border); border-radius: 999px; white-space: nowrap; }
+.app-footer .status-dot { width: 7px; height: 7px; margin: 0; }
+@media (max-width: 1100px) {
+  .dash-header-inner { flex-wrap: wrap; gap: .6rem 1rem; }
+  .primary-nav { order: 3; width: 100%; margin: 0; overflow-x: auto; }
+  .primary-nav-link { flex: 0 0 auto; }
+  .header-controls { margin-left: auto; }
+}
+@media (max-width: 575.98px) {
+  .dash-header-inner { padding: .6rem .8rem; }
+  .brand-sub { display: none; }
+  .brand-title { font-size: .9rem; }
+  .header-controls { gap: .35rem; }
+  .status-pill { padding: .25rem .5rem; }
+  .status-pill .status-label { display: none; }
+  .header-user { display: none; }
+  body > .container-fluid.py-3 { padding: .8rem !important; }
+  .app-footer { justify-content: flex-start; padding: .75rem 1rem; }
+  .app-footer-started { flex-basis: 100%; order: 3; }
+  .app-footer-version { margin-left: auto; }
+}
