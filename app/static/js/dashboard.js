@@ -698,8 +698,10 @@ document.getElementById('reset-chart-order-btn').addEventListener('click', () =>
   refreshAll();
 });
 
+// Expose the refresh function to the shared header controls. The header owns
+// the single polling timer and its configurable interval.
+window.refreshAll = refreshAll;
 refreshAll();
-setInterval(refreshAll, 5000);
 
 document.getElementById('restart-btn').addEventListener('click', restartWireguard);
 
