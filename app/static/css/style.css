@@ -250,3 +250,29 @@ body > .container-fluid.py-3 { flex: 1 0 auto; width: 100%; max-width: 1640px; p
   .app-footer-started { flex-basis: 100%; order: 3; }
   .app-footer-version { margin-left: auto; }
 }
+
+
+/* Footer order mirrors modem-dashboard: startup time on the left, app/version at right. */
+.app-footer { justify-content: flex-start; }
+.app-footer-started { order: 0; margin-right: auto; }
+.app-footer-brand { order: 1; }
+.app-footer-version { order: 2; margin-left: auto; }
+
+.refresh-interval-control {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: 0 .45rem; height: 32px; border: 1px solid var(--wm-border);
+  border-radius: 8px; color: var(--wm-muted); background: transparent;
+}
+.refresh-interval-control select {
+  width: 3.25rem; padding: 0; border: 0; outline: 0; box-shadow: none;
+  background: transparent; color: var(--wm-text); font-size: .75rem;
+  cursor: pointer;
+}
+.refresh-interval-control select:focus { box-shadow: none; }
+.refresh-interval-control option { background: var(--wm-surface); color: var(--wm-text); }
+@media (max-width: 575.98px) {
+  .app-footer-started { flex-basis: auto; order: 0; margin-right: auto; }
+  .app-footer-brand { display: none; }
+  .app-footer-version { order: 1; margin-left: 0; }
+  .refresh-interval-control { gap: .2rem; padding: 0 .3rem; }
+}
