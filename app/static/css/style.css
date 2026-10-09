@@ -254,7 +254,7 @@ body > .container-fluid.py-3 { flex: 1 0 auto; width: 100%; max-width: 1640px; p
 
 /* Footer order mirrors modem-dashboard: startup time on the left, app/version at right. */
 .app-footer { justify-content: flex-start; }
-.app-footer-started { order: 0; margin-right: auto; }
+.app-footer-started { order: 0; margin-right: 0; }
 .app-footer-brand { order: 1; }
 .app-footer-version { order: 2; margin-left: auto; }
 
@@ -271,7 +271,8 @@ body > .container-fluid.py-3 { flex: 1 0 auto; width: 100%; max-width: 1640px; p
 .refresh-interval-control select:focus { box-shadow: none; }
 .refresh-interval-control option { background: var(--wm-surface); color: var(--wm-text); }
 @media (max-width: 575.98px) {
-  .app-footer-started { flex-basis: auto; order: 0; margin-right: auto; }
+  .app-footer-started { flex-basis: auto; order: 0; margin-right: 0; }
+  .app-footer-brand { display: inline-flex; order: 1; }
   .app-footer-brand { display: none; }
   .app-footer-version { order: 1; margin-left: 0; }
   .refresh-interval-control { gap: .2rem; padding: 0 .3rem; }
