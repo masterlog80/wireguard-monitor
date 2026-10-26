@@ -208,6 +208,69 @@ across the app rather than to a single view. Currently:
 
 ---
 
+---
+
+## Versioning
+
+The current version is tracked in a single `VERSION` file at the repo root
+(a plain `MAJOR.MINOR.PATCH` string, no `v` prefix) and shown in the footer
+of every page and in the `/api/status` response, so it's always possible to
+tell exactly what's deployed on a given host — useful when comparing a
+running instance against these docs, or reporting a bug.
+
+**Every change to the app should bump `VERSION`** as part of that change,
+following normal semver judgment: PATCH for fixes, MINOR for new
+backwards-compatible features, MAJOR for breaking changes. There's no build
+step involved — just edit the file and commit it alongside the rest of the
+change.
+
+---
+
+## Running Tests
+
+```bash
+pip install pytest
+python -m pytest tests.py -v
+```
+
+---
+
+## Project Structure
+
+```
+├── run.py
+├── config.py
+├── requirements.txt
+├── tests.py
+├── VERSION
+├── install.sh
+├── wireguard-monitor.service
+└── app/
+    ├── __init__.py
+    ├── auth.py
+    ├── routes.py
+    ├── users.py
+    ├── wireguard.py
+    ├── firewall.py
+    ├── peer_names.py
+    ├── templates/
+    │   ├── base.html
+    │   ├── login.html
+    │   ├── dashboard.html
+    │   ├── firewall.html
+    │   ├── users.html
+    │   └── options.html
+    └── static/
+        ├── favicon.svg
+        ├── css/style.css
+        ├── js/app.js          # shared helpers: CSRF-attaching fetch, HTML escaping
+        ├── js/dashboard.js
+        ├── js/options.js
+        └── vendor/   # Bootstrap 5, Bootstrap Icons, Chart.js (vendored locally)
+```
+
+---
+
 ## Screenshots
 
 > Shown in the default dark theme. A light mode is also available via the toggle in the navbar (top right, next to your username).
@@ -339,67 +402,6 @@ the journal output for the next error.
 | Start | `sudo systemctl start wireguard-monitor` |
 | Restart | `sudo systemctl restart wireguard-monitor` |
 | Disable auto-start | `sudo systemctl disable wireguard-monitor` |
-
----
-
-## Versioning
-
-The current version is tracked in a single `VERSION` file at the repo root
-(a plain `MAJOR.MINOR.PATCH` string, no `v` prefix) and shown in the footer
-of every page and in the `/api/status` response, so it's always possible to
-tell exactly what's deployed on a given host — useful when comparing a
-running instance against these docs, or reporting a bug.
-
-**Every change to the app should bump `VERSION`** as part of that change,
-following normal semver judgment: PATCH for fixes, MINOR for new
-backwards-compatible features, MAJOR for breaking changes. There's no build
-step involved — just edit the file and commit it alongside the rest of the
-change.
-
----
-
-## Running Tests
-
-```bash
-pip install pytest
-python -m pytest tests.py -v
-```
-
----
-
-## Project Structure
-
-```
-├── run.py
-├── config.py
-├── requirements.txt
-├── tests.py
-├── VERSION
-├── install.sh
-├── wireguard-monitor.service
-└── app/
-    ├── __init__.py
-    ├── auth.py
-    ├── routes.py
-    ├── users.py
-    ├── wireguard.py
-    ├── firewall.py
-    ├── peer_names.py
-    ├── templates/
-    │   ├── base.html
-    │   ├── login.html
-    │   ├── dashboard.html
-    │   ├── firewall.html
-    │   ├── users.html
-    │   └── options.html
-    └── static/
-        ├── favicon.svg
-        ├── css/style.css
-        ├── js/app.js          # shared helpers: CSRF-attaching fetch, HTML escaping
-        ├── js/dashboard.js
-        ├── js/options.js
-        └── vendor/   # Bootstrap 5, Bootstrap Icons, Chart.js (vendored locally)
-```
 
 ---
 
