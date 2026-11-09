@@ -29,6 +29,8 @@ A Flask-based web application that provides a real-time monitoring dashboard for
 - Linux with WireGuard tools (`wg`) installed — the UI gracefully degrades when `wg` is absent
 - Root or `sudo` access (required to read WireGuard status and manage firewall rules)
 
+---
+
 ## Running as a systemd Service (Auto-start on Boot)
 
 A ready-to-use `wireguard-monitor.service` unit file is included.
@@ -195,18 +197,23 @@ Open **http://\<your-server\>:5000** in a browser and log in with the `ADMIN_USE
 
 ---
 
-## Options Page
+## Environment Variables
 
-A dedicated `/options` page (linked in the navbar) holds settings that apply
-across the app rather than to a single view. Currently:
-
-- **Peer View** — a switch per peer controlling whether that peer's
-  Dashboard Throughput chart is labeled from the server's point of view
-  (the default) or that peer's own point of view. See the Throughput
-  graphs bullet above for what this means. Stored per-browser, same as
-  the light/dark and chart-column preferences.
-
----
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ADMIN_USERNAME` | `admin` | Login username |
+| `ADMIN_PASSWORD` | `changeme` | Login password — **change in production!** |
+| `SECRET_KEY` | random | Flask secret key for session signing |
+| `WG_INTERFACE` | (auto) | Force a specific WireGuard interface name |
+| `MAX_HISTORY` | `60` | Number of 5-second data points kept per peer |
+| `SESSION_COOKIE_SECURE` | `false` | Set `true` once served over HTTPS to mark cookies `Secure` |
+| `WTF_CSRF_ENABLED` | `true` | CSRF protection for all state-changing requests — leave enabled in production |
+| `WTF_CSRF_TIME_LIMIT` | *(none)* | Seconds before a page's CSRF token expires. Unset by default since this is a long-running dashboard people leave open for hours; set a value (e.g. `3600`) to reintroduce Flask-WTF's normal expiry if you want tighter security |
+| `LOGIN_RATE_LIMIT_ATTEMPTS` | `10` | Failed login attempts allowed per client IP before a temporary lockout |
+| `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Sliding window (seconds) used for the login lockout above |
+| `MAX_CONTENT_LENGTH` | `16777216` (16 MiB) | Maximum size of any request body (JSON payloads, config/rules uploads) |
+| `MIN_PASSWORD_LENGTH` | `8` | Minimum password length enforced when creating a user or changing a password |
+| `FIREWALL_SAVE_DIR` | `firewall_saves` (relative) | Directory used to store saved iptables/nftables rule snapshots. The bundled systemd service overrides this to `/var/lib/wireguard-monitor/firewall_saves`, since the default relative path would otherwise resolve inside the service's read-only `/opt/wireguard-monitor` |
 
 ---
 
@@ -223,6 +230,43 @@ following normal semver judgment: PATCH for fixes, MINOR for new
 backwards-compatible features, MAJOR for breaking changes. There's no build
 step involved — just edit the file and commit it alongside the rest of the
 change.
+
+---
+
+## Screenshots
+
+> Shown in the default dark theme. A light mode is also available via the toggle in the navbar (top right, next to your username).
+
+### Login Page
+![Login Page](https://github.com/user-attachments/assets/395fbf9c-d054-4601-97cf-e885b5493417)
+
+### Dashboard
+![Dashboard](https://github.com/user-attachments/assets/5d78af9c-6891-4e8b-b583-9fb7cd21f7c7)
+
+### Firewall Rules
+![Firewall Rules](https://github.com/user-attachments/assets/b7baa1c6-ae57-4a28-823c-0c4606a95a05)
+
+### User Management
+![User Management](https://github.com/user-attachments/assets/16ebcefe-f74c-4bfa-8ad8-b1de67572ae8)
+
+### Create User
+![Create User](https://github.com/user-attachments/assets/c6206fae-789f-45bd-8417-7f788198837c)
+
+### Option Page
+<img width="2940" height="1284" alt="image" src="https://github.com/user-attachments/assets/e4037079-6000-4895-9933-34f204857c71" />
+
+---
+
+## Options Page
+
+A dedicated `/options` page (linked in the navbar) holds settings that apply
+across the app rather than to a single view. Currently:
+
+- **Peer View** — a switch per peer controlling whether that peer's
+  Dashboard Throughput chart is labeled from the server's point of view
+  (the default) or that peer's own point of view. See the Throughput
+  graphs bullet above for what this means. Stored per-browser, same as
+  the light/dark and chart-column preferences.
 
 ---
 
@@ -268,51 +312,6 @@ python -m pytest tests.py -v
         ├── js/options.js
         └── vendor/   # Bootstrap 5, Bootstrap Icons, Chart.js (vendored locally)
 ```
-
----
-
-## Screenshots
-
-> Shown in the default dark theme. A light mode is also available via the toggle in the navbar (top right, next to your username).
-
-### Login Page
-![Login Page](https://github.com/user-attachments/assets/395fbf9c-d054-4601-97cf-e885b5493417)
-
-### Dashboard
-![Dashboard](https://github.com/user-attachments/assets/5d78af9c-6891-4e8b-b583-9fb7cd21f7c7)
-
-### Firewall Rules
-![Firewall Rules](https://github.com/user-attachments/assets/b7baa1c6-ae57-4a28-823c-0c4606a95a05)
-
-### User Management
-![User Management](https://github.com/user-attachments/assets/16ebcefe-f74c-4bfa-8ad8-b1de67572ae8)
-
-### Create User
-![Create User](https://github.com/user-attachments/assets/c6206fae-789f-45bd-8417-7f788198837c)
-
-### Option Page
-<img width="2940" height="1284" alt="image" src="https://github.com/user-attachments/assets/e4037079-6000-4895-9933-34f204857c71" />
-
-
----
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ADMIN_USERNAME` | `admin` | Login username |
-| `ADMIN_PASSWORD` | `changeme` | Login password — **change in production!** |
-| `SECRET_KEY` | random | Flask secret key for session signing |
-| `WG_INTERFACE` | (auto) | Force a specific WireGuard interface name |
-| `MAX_HISTORY` | `60` | Number of 5-second data points kept per peer |
-| `SESSION_COOKIE_SECURE` | `false` | Set `true` once served over HTTPS to mark cookies `Secure` |
-| `WTF_CSRF_ENABLED` | `true` | CSRF protection for all state-changing requests — leave enabled in production |
-| `WTF_CSRF_TIME_LIMIT` | *(none)* | Seconds before a page's CSRF token expires. Unset by default since this is a long-running dashboard people leave open for hours; set a value (e.g. `3600`) to reintroduce Flask-WTF's normal expiry if you want tighter security |
-| `LOGIN_RATE_LIMIT_ATTEMPTS` | `10` | Failed login attempts allowed per client IP before a temporary lockout |
-| `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Sliding window (seconds) used for the login lockout above |
-| `MAX_CONTENT_LENGTH` | `16777216` (16 MiB) | Maximum size of any request body (JSON payloads, config/rules uploads) |
-| `MIN_PASSWORD_LENGTH` | `8` | Minimum password length enforced when creating a user or changing a password |
-| `FIREWALL_SAVE_DIR` | `firewall_saves` (relative) | Directory used to store saved iptables/nftables rule snapshots. The bundled systemd service overrides this to `/var/lib/wireguard-monitor/firewall_saves`, since the default relative path would otherwise resolve inside the service's read-only `/opt/wireguard-monitor` |
 
 ---
 
